@@ -1,13 +1,27 @@
 #!/usr/bin/env python3
 
-from os import getcwd
-from pygit2 import discover_repository, Repository
+import os
+from pygit2 import discover_repository, Oid, Repository, GIT_OBJ_TREE, GIT_OBJ_BLOB, GIT_OID_HEX_ZERO
 
-cwd = getcwd()
+cwd = os.getcwd()
 repo_path = discover_repository(cwd)
 repo = Repository(repo_path)
 
-print(repo.head.target)
+path = 'arch/x86/Makefile'
+
+def getBlobByTree(tree, item, tail):
+	entry = next((e for e in tree if e.name == item), None)
+	if not entry:
+		return Oid(hex=GIT_OID_HEX_ZERO)
+	obj = repo[entry.id]
+	if obj.type == GIT_OBJ_TREE:
+		return getBlobByTree(obj, tail[0], tail[1:])
+	assert obj.type == GIT_OBJ_BLOB
+	return obj.id
+
+def getBlob(commit, path):
+	parts = path.split(os.sep)
+	return getBlobByTree(commit.tree, parts[0], parts[1:])
 
 for w in repo.walk(repo.head.target):
-	print(w.id, w.parent_ids)
+	print(str(w.id)[:7], [str(i)[:7] for i in w.parent_ids], str(getBlob(w, path))[:7])

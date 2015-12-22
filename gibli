@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
 
+from os import getcwd
+from pygit2 import discover_repository, Repository
 
+cwd = getcwd()
+repo_path = discover_repository(cwd)
+repo = Repository(repo_path)
 
+print(repo.head.target)
+
+for w in repo.walk(repo.head.target):
+	print(w.id, w.parent_ids)

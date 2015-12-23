@@ -27,7 +27,7 @@ class Revision:
 	def __init__(self, commit):
 		self.commit = commit
 		self.id = commit.id
-		self.parent_ids = commit.parent_ids
+		self.parent_ids = set(commit.parent_ids)
 		self.child_ids = set()
 		self.file_id = getBlob(commit.tree, path)
 
@@ -45,9 +45,41 @@ while todo:
 	commits[commit.id] = Revision(commit)
 	todo.update(commit.parents)
 
+# Accumulate childs
 for c in commits.values():
 	for p in c.parent_ids:
 		commits[p].addChild(c.id)
+
+def dropIdenticalChains():
+	to_drop = set()
+	for c in commits.values():
+		if len(c.parent_ids) != 1 or len(c.child_ids) != 1:
+			continue
+		parent = commits[next(iter(c.parent_ids))]
+		if parent.file_id != c.file_id:
+			continue
+		child = commits[next(iter(c.child_ids))]
+		if child.file_id != c.file_id:
+			continue
+		# unlink from three
+		child.parent_ids.remove(c.id)
+		parent.child_ids.remove(c.id)
+		c.parent_ids.clear()
+		c.child_ids.clear()
+		to_drop.add(c.id)
+		# link child and parent
+		child.parent_ids.add(parent.id)
+		parent.child_ids.add(child.id)
+	for cid in to_drop:
+		del commits[cid]
+	return bool(to_drop)
+
+
+while True:
+	idrop = dropIdenticalChains()
+	if not idrop:
+		break
+
 
 for c in commits.values():
 	print(str(c.id)[:7], [str(i)[:7] for i in c.parent_ids], str(c.file_id)[:7])

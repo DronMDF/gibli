@@ -42,8 +42,12 @@ while todo:
 	commit = todo.pop()
 	if commit.id in commits:
 		continue
-	commits[commit.id] = Revision(commit)
-	todo.update(commit.parents)
+	revision = Revision(commit)
+	if revision.file_id == Oid(hex=GIT_OID_HEX_ZERO):
+		revision.parent_ids.clear()
+	else:
+		todo.update(commit.parents)
+	commits[commit.id] = revision
 
 # Accumulate childs
 for c in commits.values():

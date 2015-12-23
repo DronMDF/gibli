@@ -28,7 +28,12 @@ class Revision:
 		self.commit = commit
 		self.id = commit.id
 		self.parent_ids = commit.parent_ids
+		self.child_ids = set()
 		self.file_id = getBlob(commit.tree, path)
+
+	def addChild(self, id):
+		self.child_ids.add(id)
+
 
 commits = dict()
 todo = {repo.head.peel()}
@@ -39,6 +44,10 @@ while todo:
 		continue
 	commits[commit.id] = Revision(commit)
 	todo.update(commit.parents)
+
+for c in commits.values():
+	for p in c.parent_ids:
+		commits[p].addChild(c.id)
 
 for c in commits.values():
 	print(str(c.id)[:7], [str(i)[:7] for i in c.parent_ids], str(c.file_id)[:7])

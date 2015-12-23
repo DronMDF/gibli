@@ -75,11 +75,16 @@ def dropIdenticalChains():
 	return bool(to_drop)
 
 
-while True:
-	idrop = dropIdenticalChains()
-	if not idrop:
-		break
+while dropIdenticalChains():
+	pass
 
+
+print('digraph {')
 
 for c in commits.values():
-	print(str(c.id)[:7], [str(i)[:7] for i in c.parent_ids], str(c.file_id)[:7])
+	print('\t"%s" [label="%s"];' % (str(c.id)[:7], str(c.file_id)[:7]))
+	for p in c.parent_ids:
+		print('\t"%s" -> "%s";' % (str(p)[:7], str(c.id)[:7]))
+	#print(str(c.id)[:7], [str(i)[:7] for i in c.parent_ids], str(c.file_id)[:7])
+
+print('}')

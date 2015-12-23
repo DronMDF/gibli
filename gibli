@@ -19,9 +19,16 @@ def getBlobByTree(tree, item, tail):
 	assert obj.type == GIT_OBJ_BLOB
 	return obj.id
 
-def getBlob(commit, path):
+def getBlob(tree, path):
 	parts = path.split(os.sep)
-	return getBlobByTree(commit.tree, parts[0], parts[1:])
+	return getBlobByTree(tree, parts[0], parts[1:])
+
+class Revision:
+	def __init__(self, commit):
+		self.commit = commit
+		self.id = commit.id
+		self.parent_ids = commit.parent_ids
+		self.file_id = getBlob(commit.tree, path)
 
 commits = dict()
 todo = {repo.head.peel()}
@@ -30,8 +37,8 @@ while todo:
 	commit = todo.pop()
 	if commit.id in commits:
 		continue
-	commits[commit.id] = commit
+	commits[commit.id] = Revision(commit)
 	todo.update(commit.parents)
 
 for c in commits.values():
-	print(str(c.id)[:7], [str(i)[:7] for i in c.parent_ids], str(getBlob(c, path))[:7])
+	print(str(c.id)[:7], [str(i)[:7] for i in c.parent_ids], str(c.file_id)[:7])

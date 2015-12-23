@@ -79,6 +79,23 @@ while dropIdenticalChains():
 	pass
 
 
+def cutNonPresent():
+	root = next((c for c in commits.values() if not c.parent_ids), None)
+	if root is None or root.file_id != Oid(hex=GIT_OID_HEX_ZERO):
+		return False
+	if not root.child_ids:	# HEAD revision
+		return False
+	for p in root.child_ids:
+		parent = commits[p]
+		parent.parent_ids.remove(root.id)
+	del commits[root.id]
+	return True
+
+
+while cutNonPresent():
+	pass
+
+
 print('digraph {')
 
 for c in commits.values():

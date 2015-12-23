@@ -23,5 +23,15 @@ def getBlob(commit, path):
 	parts = path.split(os.sep)
 	return getBlobByTree(commit.tree, parts[0], parts[1:])
 
-for w in repo.walk(repo.head.target):
-	print(str(w.id)[:7], [str(i)[:7] for i in w.parent_ids], str(getBlob(w, path))[:7])
+commits = dict()
+todo = {repo.head.peel()}
+
+while todo:
+	commit = todo.pop()
+	if commit.id in commits:
+		continue
+	commits[commit.id] = commit
+	todo.update(commit.parents)
+
+for c in commits.values():
+	print(str(c.id)[:7], [str(i)[:7] for i in c.parent_ids], str(getBlob(c, path))[:7])

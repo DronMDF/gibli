@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 from pygit2 import discover_repository, Oid, Repository, GIT_OBJ_TREE, GIT_OBJ_BLOB, GIT_OID_HEX_ZERO
+
+parser = argparse.ArgumentParser(description='GIT blame interface')
+parser.add_argument('filename', type=str, nargs='?', help='filename to analisys')
+args = parser.parse_args()
 
 cwd = os.getcwd()
 repo_path = discover_repository(cwd)
 repo = Repository(repo_path)
 
-path = 'arch/x86/Makefile'
+path = args.filename
 
 def getBlobByTree(tree, item, tail):
 	entry = next((e for e in tree if e.name == item), None)

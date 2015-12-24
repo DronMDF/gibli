@@ -62,23 +62,25 @@ for c in commits.values():
 def dropIdenticalChains():
 	to_drop = set()
 	for c in commits.values():
-		if len(c.parent_ids) != 1 or len(c.child_ids) != 1:
+		if not c.parent_ids or not c.child_ids:
 			continue
-		parent = commits[next(iter(c.parent_ids))]
-		if parent.file_id != c.file_id:
+		parents = [commits[pp] for pp in c.parent_ids]
+		if any((pp.file_id != c.file_id for pp in parents)):
 			continue
-		child = commits[next(iter(c.child_ids))]
-		if child.file_id != c.file_id:
+		childs = [commits[cc] for cc in c.child_ids]
+		if any((cc.file_id != c.file_id for cc in childs)):
 			continue
-		# unlink from three
-		child.parent_ids.remove(c.id)
-		parent.child_ids.remove(c.id)
+		# unlink current and link childs and parent
+		for cc in childs:
+			cc.parent_ids.remove(c.id)
+			cc.parent_ids.update(c.parent_ids)
+		for pp in parents:
+			pp.child_ids.remove(c.id)
+			pp.child_ids.update(c.child_ids)
+		# Cleanup current
 		c.parent_ids.clear()
 		c.child_ids.clear()
 		to_drop.add(c.id)
-		# link child and parent
-		child.parent_ids.add(parent.id)
-		parent.child_ids.add(child.id)
 	for cid in to_drop:
 		del commits[cid]
 	return bool(to_drop)

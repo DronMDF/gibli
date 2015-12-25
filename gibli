@@ -12,7 +12,7 @@ cwd = os.getcwd()
 repo_path = discover_repository(cwd)
 repo = Repository(repo_path)
 
-path = args.filename
+path = os.path.relpath(args.filename, repo.workdir)
 
 def getBlobByTree(tree, item, tail):
 	entry = next((e for e in tree if e.name == item), None)

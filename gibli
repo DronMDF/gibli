@@ -3,6 +3,7 @@
 import argparse
 import os
 from pygit2 import discover_repository, Oid, Repository, GIT_OBJ_TREE, GIT_OBJ_BLOB, GIT_OID_HEX_ZERO
+from gi.repository import Gtk
 
 parser = argparse.ArgumentParser(description='GIT blame interface')
 parser.add_argument('filename', type=str, nargs='?', help='filename to analisys')
@@ -110,12 +111,23 @@ while cutNonPresent():
 	pass
 
 
-print('digraph {')
+#print('digraph {')
 
-for c in commits.values():
-	print('\t"%s" [label="%s"];' % (str(c.id)[:7], c.label()))
-	for p in c.parent_ids:
-		print('\t"%s" -> "%s";' % (str(p)[:7], str(c.id)[:7]))
+#for c in commits.values():
+#	print('\t"%s" [label="%s"];' % (str(c.id)[:7], c.label()))
+#	for p in c.parent_ids:
+#		print('\t"%s" -> "%s";' % (str(p)[:7], str(c.id)[:7]))
 	#print(str(c.id)[:7], [str(i)[:7] for i in c.parent_ids], str(c.file_id)[:7])
 
-print('}')
+#print('}')
+
+
+class MainWindow:
+	def __init__(self):
+		self.window = Gtk.Window()
+		self.window.connect('delete-event', Gtk.main_quit)
+		self.window.show_all()
+
+if __name__ == '__main__':
+	main_window = MainWindow()
+	Gtk.main()

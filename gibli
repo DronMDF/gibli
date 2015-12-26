@@ -127,9 +127,21 @@ class MainWindow(Gtk.Window):
 		super().__init__(title=path + ' - Gibli')
 		self.maximize()
 
+		self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+		self.add(self.vbox)
 
-if __name__ == '__main__':
-	main_window = MainWindow()
+		self.textview = Get.TextView()
+		self.vbox.pack_start(self.textview, True, True, 0)
+
+def main():
+	builder = Gtk.Builder()
+	builder.add_from_file('gibli.glade')
+
+	main_window = builder.get_object('mainwindow')
 	main_window.connect('delete-event', Gtk.main_quit)
 	main_window.show_all()
+
+
+if __name__ == '__main__':
+	main()
 	Gtk.main()

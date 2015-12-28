@@ -140,6 +140,7 @@ def main():
 	main_window = builder.get_object('mainwindow')
 	main_window.connect('delete-event', Gtk.main_quit)
 	main_window.show_all()
+	main_window.maximize()
 
 
 if __name__ == '__main__':

@@ -133,8 +133,13 @@ class MainWindow(Gtk.Window):
 		self.textview = Get.TextView()
 		self.vbox.pack_start(self.textview, True, True, 0)
 
+builder = Gtk.Builder()
+main_window = None
+textview1 = None
+textview2 = None
+giaphview = None
+
 def main():
-	builder = Gtk.Builder()
 	builder.add_from_file('gibli.glade')
 
 	main_window = builder.get_object('mainwindow')
@@ -145,4 +150,12 @@ def main():
 
 if __name__ == '__main__':
 	main()
+
+	head = repo.head.peel()
+	blob_id = getBlob(head.tree, path)
+	blob_text = repo[blob_id].data
+
+	textview2 = builder.get_object('textview2')
+	textview2.get_buffer().set_text(blob_text.decode('utf8'))
+
 	Gtk.main()

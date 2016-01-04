@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import signal
 from pygit2 import discover_repository, Oid, Repository, GIT_OBJ_TREE, GIT_OBJ_BLOB, GIT_OID_HEX_ZERO
 from gi.repository import Gtk
 
@@ -155,6 +156,8 @@ def main():
 
 
 if __name__ == '__main__':
+	signal.signal(signal.SIGINT, signal.SIG_DFL)
+
 	main()
 
 	head = repo.head.peel()

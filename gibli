@@ -145,7 +145,13 @@ def main():
 	main_window = builder.get_object('mainwindow')
 	main_window.connect('delete-event', Gtk.main_quit)
 	main_window.show_all()
+
 	main_window.maximize()
+
+	# Paned separator setup
+	paned = builder.get_object('paned1')
+	height = paned.get_allocated_height()
+	paned.set_position(height * 0.7)
 
 
 if __name__ == '__main__':

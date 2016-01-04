@@ -164,7 +164,16 @@ if __name__ == '__main__':
 	blob_id = getBlob(head.tree, path)
 	blob_text = repo[blob_id].data
 
-	textview2 = builder.get_object('textview2')
+	textview2 = builder.get_object('rightText')
 	textview2.get_buffer().set_text(blob_text.decode('utf8'))
+
+	revisionText = builder.get_object('rightRevisionText')
+	revisionText.get_buffer().set_text(str(head.id))
+
+	authorText = builder.get_object('rightAuthorText')
+	authorText.get_buffer().set_text('%s <%s>' % (head.author.name, head.author.email))
+
+	commitText = builder.get_object('rightCommitText')
+	commitText.get_buffer().set_text(head.message.splitlines()[0])
 
 	Gtk.main()

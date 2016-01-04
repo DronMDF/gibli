@@ -134,13 +134,27 @@ class MainWindow(Gtk.Window):
 		self.textview = Get.TextView()
 		self.vbox.pack_start(self.textview, True, True, 0)
 
-builder = Gtk.Builder()
-main_window = None
-textview1 = None
-textview2 = None
-giaphview = None
+class Panel:
+	def __init__(self, builder, textId, revId, authorId, messageId):
+		self.textWidget = builder.get_object(textId)
+		self.revWidget = builder.get_object(revId)
+		self.authorWidget = builder.get_object(authorId)
+		self.messageWidget = builder.get_object(messageId)
 
-def main():
+	def show(self, commit, path):
+		blob_id = getBlob(commit.tree, path)
+		blob_text = repo[blob_id].data
+
+		self.textWidget.get_buffer().set_text(blob_text.decode('utf8'))
+		self.revWidget.get_buffer().set_text(str(commit.id))
+		self.authorWidget.get_buffer().set_text('%s <%s>' % (commit.author.name, commit.author.email))
+		self.messageWidget.get_buffer().set_text(commit.message.splitlines()[0])
+
+
+if __name__ == '__main__':
+	signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+	builder = Gtk.Builder()
 	builder.add_from_file('gibli.glade')
 
 	main_window = builder.get_object('mainwindow')
@@ -154,26 +168,13 @@ def main():
 	height = paned.get_allocated_height()
 	paned.set_position(height * 0.7)
 
-
-if __name__ == '__main__':
-	signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-	main()
+	leftPanel = Panel(builder, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
+	rightPanel = Panel(builder, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
 
 	head = repo.head.peel()
-	blob_id = getBlob(head.tree, path)
-	blob_text = repo[blob_id].data
+	rightPanel.show(head, path)
 
-	textview2 = builder.get_object('rightText')
-	textview2.get_buffer().set_text(blob_text.decode('utf8'))
-
-	revisionText = builder.get_object('rightRevisionText')
-	revisionText.get_buffer().set_text(str(head.id))
-
-	authorText = builder.get_object('rightAuthorText')
-	authorText.get_buffer().set_text('%s <%s>' % (head.author.name, head.author.email))
-
-	commitText = builder.get_object('rightCommitText')
-	commitText.get_buffer().set_text(head.message.splitlines()[0])
+	previous = head.parents[0]
+	leftPanel.show(previous, path)
 
 	Gtk.main()

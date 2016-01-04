@@ -47,7 +47,9 @@
                       <object class="GtkLabel" id="label4">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Revision</property>
+                        <property name="halign">end</property>
+                        <property name="margin_left">4</property>
+                        <property name="label" translatable="yes">Revision:</property>
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
@@ -58,6 +60,8 @@
                       <object class="GtkTextView" id="leftRevisionText">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
+                        <property name="margin_left">4</property>
+                        <property name="margin_right">4</property>
                         <property name="editable">False</property>
                         <property name="accepts_tab">False</property>
                       </object>
@@ -70,7 +74,9 @@
                       <object class="GtkLabel" id="label5">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Author</property>
+                        <property name="halign">end</property>
+                        <property name="margin_left">4</property>
+                        <property name="label" translatable="yes">Author:</property>
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
@@ -81,7 +87,9 @@
                       <object class="GtkLabel" id="label6">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Commit</property>
+                        <property name="halign">end</property>
+                        <property name="margin_left">4</property>
+                        <property name="label" translatable="yes">Commit:</property>
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
@@ -92,6 +100,8 @@
                       <object class="GtkTextView" id="leftAuthorText">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
+                        <property name="margin_left">4</property>
+                        <property name="margin_right">4</property>
                         <property name="editable">False</property>
                         <property name="accepts_tab">False</property>
                       </object>
@@ -104,6 +114,8 @@
                       <object class="GtkTextView" id="leftCommitText">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
+                        <property name="margin_left">4</property>
+                        <property name="margin_right">4</property>
                         <property name="hexpand">True</property>
                         <property name="editable">False</property>
                         <property name="accepts_tab">False</property>
@@ -171,7 +183,9 @@
                       <object class="GtkLabel" id="label1">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Revision</property>
+                        <property name="halign">end</property>
+                        <property name="margin_left">4</property>
+                        <property name="label" translatable="yes">Revision:</property>
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
@@ -182,6 +196,8 @@
                       <object class="GtkTextView" id="rightRevisionText">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
+                        <property name="margin_left">4</property>
+                        <property name="margin_right">4</property>
                         <property name="editable">False</property>
                         <property name="accepts_tab">False</property>
                       </object>
@@ -194,7 +210,9 @@
                       <object class="GtkLabel" id="label2">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Author</property>
+                        <property name="halign">end</property>
+                        <property name="margin_left">4</property>
+                        <property name="label" translatable="yes">Author:</property>
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
@@ -205,7 +223,9 @@
                       <object class="GtkLabel" id="label3">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Commit</property>
+                        <property name="halign">end</property>
+                        <property name="margin_left">4</property>
+                        <property name="label" translatable="yes">Commit:</property>
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
@@ -216,6 +236,8 @@
                       <object class="GtkTextView" id="rightAuthorText">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
+                        <property name="margin_left">4</property>
+                        <property name="margin_right">4</property>
                         <property name="editable">False</property>
                         <property name="accepts_tab">False</property>
                       </object>
@@ -228,6 +250,8 @@
                       <object class="GtkTextView" id="rightCommitText">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
+                        <property name="margin_left">4</property>
+                        <property name="margin_right">4</property>
                         <property name="hexpand">True</property>
                         <property name="editable">False</property>
                         <property name="accepts_tab">False</property>

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import math
 import os
 import signal
 from pygit2 import discover_repository, Oid, Repository, GIT_OBJ_TREE, GIT_OBJ_BLOB, GIT_OID_HEX_ZERO
@@ -151,6 +152,29 @@ class Panel:
 		self.messageWidget.get_buffer().set_text(commit.message.splitlines()[0])
 
 
+def draw_cb(widget, context):
+	x = 150
+	y = 75
+	w = 50
+
+	context.set_source_rgb(0, 0, 0)
+	context.arc(x, y, 10, math.pi * 1.5, math.pi * .5)
+	context.rel_line_to(-50, 0)
+	context.arc(x - 50, y, 10, math.pi * .5, math.pi * 1.5)
+	context.close_path()
+	context.stroke_preserve()
+
+	context.set_source_rgb(0.4, 1, 0.4)
+	context.fill()
+
+	context.move_to(x + 10, y)
+	context.set_source_rgb(0, 0, 0)
+	context.rel_curve_to(15, 0, 15, -30, 30, -30)
+	context.stroke()
+
+	return False
+
+
 if __name__ == '__main__':
 	signal.signal(signal.SIGINT, signal.SIG_DFL)
 
@@ -176,5 +200,8 @@ if __name__ == '__main__':
 
 	previous = head.parents[0]
 	leftPanel.show(previous, path)
+
+	darea = builder.get_object('revisionGraph')
+	darea.connect('draw', draw_cb)
 
 	Gtk.main()

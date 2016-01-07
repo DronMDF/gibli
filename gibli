@@ -158,19 +158,22 @@ def draw_cb(widget, context):
 	w = 50
 
 	context.set_source_rgb(0, 0, 0)
-	context.arc(x, y, 10, math.pi * 1.5, math.pi * .5)
-	context.rel_line_to(-50, 0)
-	context.arc(x - 50, y, 10, math.pi * .5, math.pi * 1.5)
+	context.arc(x, y, 8, math.pi * 1.5, math.pi * .5)
+	context.rel_line_to(-40, 0)
+	context.arc(x - 40, y, 8, math.pi * .5, math.pi * 1.5)
 	context.close_path()
 	context.stroke_preserve()
 
 	context.set_source_rgb(0.4, 1, 0.4)
 	context.fill()
 
-	context.move_to(x + 10, y)
+	context.move_to(x + 8, y)
 	context.set_source_rgb(0, 0, 0)
 	context.rel_curve_to(15, 0, 15, -30, 30, -30)
 	context.stroke()
+
+	context.move_to(x - 40, y + 4)
+	context.show_text(str(repo.head.target)[:7])
 
 	return False
 

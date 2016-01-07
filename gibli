@@ -5,7 +5,7 @@ import math
 import os
 import signal
 from pygit2 import discover_repository, Oid, Repository, GIT_OBJ_TREE, GIT_OBJ_BLOB, GIT_OID_HEX_ZERO
-from gi.repository import Gtk
+from gi.repository import Gtk, GLib
 
 parser = argparse.ArgumentParser(description='GIT blame interface')
 parser.add_argument('filename', type=str, nargs='?', help='filename to analisys')
@@ -37,7 +37,7 @@ class Revision:
 		self.id = commit.id
 		self.parent_ids = set(commit.parent_ids)
 		self.child_ids = set()
-		self.file_id = getBlob(commit.tree, path)
+		#self.file_id = getBlob(commit.tree, path)
 
 	def addChild(self, id):
 		self.child_ids.add(id)
@@ -47,70 +47,53 @@ class Revision:
 
 
 commits = dict()
-todo = {repo.head.peel()}
 
-while todo:
-	commit = todo.pop()
-	if commit.id in commits:
-		continue
-	revision = Revision(commit)
-	if revision.file_id == Oid(hex=GIT_OID_HEX_ZERO):
-		revision.parent_ids.clear()
-	else:
-		todo.update(commit.parents)
-	commits[commit.id] = revision
-
-# Accumulate childs
-for c in commits.values():
-	for p in c.parent_ids:
-		commits[p].addChild(c.id)
-
-def dropIdenticalChains():
-	to_drop = set()
-	for c in commits.values():
-		if not c.parent_ids or not c.child_ids:
-			continue
-		parents = [commits[pp] for pp in c.parent_ids]
-		if any((pp.file_id != c.file_id for pp in parents)):
-			continue
-		childs = [commits[cc] for cc in c.child_ids]
-		if any((cc.file_id != c.file_id for cc in childs)):
-			continue
-		# unlink current and link childs and parent
-		for cc in childs:
-			cc.parent_ids.remove(c.id)
-			cc.parent_ids.update(c.parent_ids)
-		for pp in parents:
-			pp.child_ids.remove(c.id)
-			pp.child_ids.update(c.child_ids)
-		# Cleanup current
-		c.parent_ids.clear()
-		c.child_ids.clear()
-		to_drop.add(c.id)
-	for cid in to_drop:
-		del commits[cid]
-	return bool(to_drop)
+#def dropIdenticalChains():
+#	to_drop = set()
+#	for c in commits.values():
+#		if not c.parent_ids or not c.child_ids:
+#			continue
+#		parents = [commits[pp] for pp in c.parent_ids]
+#		if any((pp.file_id != c.file_id for pp in parents)):
+#			continue
+#		childs = [commits[cc] for cc in c.child_ids]
+#		if any((cc.file_id != c.file_id for cc in childs)):
+#			continue
+#		# unlink current and link childs and parent
+#		for cc in childs:
+#			cc.parent_ids.remove(c.id)
+#			cc.parent_ids.update(c.parent_ids)
+#		for pp in parents:
+#			pp.child_ids.remove(c.id)
+#			pp.child_ids.update(c.child_ids)
+#		# Cleanup current
+#		c.parent_ids.clear()
+#		c.child_ids.clear()
+#		to_drop.add(c.id)
+#	for cid in to_drop:
+#		del commits[cid]
+#	return bool(to_drop)
 
 
-while dropIdenticalChains():
-	pass
+#while dropIdenticalChains():
+#	pass
 
 
-def cutNonPresent():
-	root = next((c for c in commits.values() if not c.parent_ids), None)
-	if root is None or root.file_id != Oid(hex=GIT_OID_HEX_ZERO):
-		return False
-	if not root.child_ids:	# HEAD revision
-		return False
-	for p in root.child_ids:
-		parent = commits[p]
-		parent.parent_ids.remove(root.id)
-	del commits[root.id]
-	return True
+#def cutNonPresent():
+#	root = next((c for c in commits.values() if not c.parent_ids), None)
+#	if root is None or root.file_id != Oid(hex=GIT_OID_HEX_ZERO):
+#		return False
+#	if not root.child_ids:	# HEAD revision
+#		return False
+#	for p in root.child_ids:
+#		parent = commits[p]
+#		parent.parent_ids.remove(root.id)
+#	del commits[root.id]
+#	return True
 
 
-while cutNonPresent():
-	pass
+#while cutNonPresent():
+#	pass
 
 
 #print('digraph {')
@@ -122,6 +105,36 @@ while cutNonPresent():
 	#print(str(c.id)[:7], [str(i)[:7] for i in c.parent_ids], str(c.file_id)[:7])
 
 #print('}')
+
+def getRevisionGrapth(progress):
+	todo = {repo.head.peel()}
+
+	while todo:
+		commit = todo.pop()
+		if commit.id in commits:
+			continue
+		revision = Revision(commit)
+		#if revision.file_id == Oid(hex=GIT_OID_HEX_ZERO):
+		#	revision.parent_ids.clear()
+		#else:
+		todo.update(commit.parents)
+		commits[commit.id] = revision
+		progress.set_fraction(len(commits) / float(len(commits) + len(todo)))
+		progress.set_text('Loading revision graph...')
+		yield True
+
+	progress.set_fraction(0)
+	ac_step = 1.0 / len(commits)
+	ac_value = 0
+	for c in commits.values():
+		for p in c.parent_ids:
+			commits[p].addChild(c.id)
+		ac_value += ac_step
+		progress.set_fraction(ac_value)
+		progress.set_text('Accumulate childs...')
+		yield True
+
+	progress.hide()
 
 
 class MainWindow(Gtk.Window):
@@ -182,7 +195,7 @@ if __name__ == '__main__':
 	signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 	builder = Gtk.Builder()
-	builder.add_from_file('gibli.glade')
+	builder.add_from_file(os.path.dirname(__file__) + '/gibli.glade')
 
 	main_window = builder.get_object('mainwindow')
 	main_window.connect('delete-event', Gtk.main_quit)
@@ -201,10 +214,15 @@ if __name__ == '__main__':
 	head = repo.head.peel()
 	rightPanel.show(head, path)
 
+	progress = builder.get_object('statusBar')
+	loading = getRevisionGrapth(progress)
+	GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)
+
 	previous = head.parents[0]
 	leftPanel.show(previous, path)
 
 	darea = builder.get_object('revisionGraph')
+	darea.set_size_request(200, 200)
 	darea.connect('draw', draw_cb)
 
 	Gtk.main()

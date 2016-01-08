@@ -134,6 +134,8 @@ def getRevisionGrapth(progress):
 		progress.set_text('Accumulate childs...')
 		yield True
 
+	# Graph width calculate by maximum chain length
+
 	progress.hide()
 
 
@@ -215,14 +217,13 @@ if __name__ == '__main__':
 	rightPanel.show(head, path)
 
 	progress = builder.get_object('statusBar')
+	darea = builder.get_object('revisionGraph')
 	loading = getRevisionGrapth(progress)
 	GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)
 
 	previous = head.parents[0]
 	leftPanel.show(previous, path)
 
-	darea = builder.get_object('revisionGraph')
-	darea.set_size_request(200, 200)
 	darea.connect('draw', draw_cb)
 
 	Gtk.main()

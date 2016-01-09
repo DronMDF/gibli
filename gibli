@@ -32,12 +32,16 @@ def getBlob(tree, path):
 	return getBlobByTree(tree, parts[0], parts[1:])
 
 class Revision:
+	ZERO = Oid(hex=GIT_OID_HEX_ZERO)
+
 	def __init__(self, commit):
 		self.commit = commit
 		self.id = commit.id
+		self.file_id = self.ZERO
 		self.parent_ids = set(commit.parent_ids)
 		self.child_ids = set()
-		#self.file_id = getBlob(commit.tree, path)
+		self.deep = None
+		self.branch = None
 
 	def addChild(self, id):
 		self.child_ids.add(id)
@@ -109,6 +113,7 @@ commits = dict()
 def getRevisionGrapth(progress):
 	todo = {repo.head.peel()}
 
+	progress.set_text('Loading revisions...')
 	while todo:
 		commit = todo.pop()
 		if commit.id in commits:
@@ -120,9 +125,9 @@ def getRevisionGrapth(progress):
 		todo.update(commit.parents)
 		commits[commit.id] = revision
 		progress.set_fraction(len(commits) / float(len(commits) + len(todo)))
-		progress.set_text('Loading revision graph...')
 		yield True
 
+	progress.set_text('Accumulate childs...')
 	progress.set_fraction(0)
 	ac_step = 1.0 / len(commits)
 	ac_value = 0
@@ -131,10 +136,25 @@ def getRevisionGrapth(progress):
 			commits[p].addChild(c.id)
 		ac_value += ac_step
 		progress.set_fraction(ac_value)
-		progress.set_text('Accumulate childs...')
 		yield True
 
-	# Graph width calculate by maximum chain length
+	progress.set_text('Determine deep of tree...')
+	deeped = set()
+	ready = {repo.head.target}
+	for d in range(0, 1000000):
+		actual = {r for r in ready if commits[r].child_ids.issubset(deeped)}
+		print('actual len:', len(actual))
+		if not actual:
+			break
+		deeped.update(actual)
+		ready.difference_update(actual)
+		for a in actual:
+			commits[a].deep = d
+			ready.update(commits[a].parent_ids)
+		progress.set_fraction(len(deeped) / len(commits))
+		yield True
+
+	print("Three deep is:", max((c.deep for c in commits.values())))
 
 	progress.hide()
 

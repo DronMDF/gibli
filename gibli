@@ -110,7 +110,7 @@ commits = dict()
 
 #print('}')
 
-def getRevisionGrapth(progress):
+def getRevisionGrapth(progress, darea):
 	todo = {repo.head.peel()}
 
 	progress.set_text('Loading revisions...')
@@ -160,14 +160,13 @@ def getRevisionGrapth(progress):
 	ready = []
 	def branch(rev, n):
 		commit = commits[rev]
-		while commit is not None and commit.branch is None:
+		while commit.branch is None:
 			commit.branch = n
-			to = commit.deep
 			if commit.parent_ids:
 				commit = commits[commit.parent_ids[0]]
 			else:
-				commit = None
-		return to + 1
+				return commit.deep + 1
+		return commit.deep
 	for n in range(0, 1000):
 		unbranch = [b for b in commits.values() if b.branch is None]
 		potential = [b for b in unbranch if all((commits[c].branch is not None for c in b.child_ids))]
@@ -176,7 +175,6 @@ def getRevisionGrapth(progress):
 		for commit in sorted(potential, key=lambda c: c.deep):
 			if commit.branch is not None or commit.deep < from_d:
 				continue
-			print(commit.id, commit.deep, n)
 			from_d = branch(commit.id, n)
 			yield True
 		if not any((b.branch is None for b in commits.values())):
@@ -185,6 +183,7 @@ def getRevisionGrapth(progress):
 	print("Three with is:", max((c.branch for c in commits.values())))
 
 	progress.hide()
+	darea.queue_draw()
 
 
 class MainWindow(Gtk.Window):
@@ -216,27 +215,46 @@ class Panel:
 
 
 def draw_cb(widget, context):
-	x = 150
-	y = 75
-	w = 50
+	try:
+		deep = max((c.deep for c in commits.values()))
+		branch = max((c.branch for c in commits.values()))
+	except:
+		# Не определили еще наполнение
+		return False
 
-	context.set_source_rgb(0, 0, 0)
-	context.arc(x, y, 8, math.pi * 1.5, math.pi * .5)
-	context.rel_line_to(-40, 0)
-	context.arc(x - 40, y, 8, math.pi * .5, math.pi * 1.5)
-	context.close_path()
-	context.stroke_preserve()
+	width = 63 + deep * 86 + 23
+	height = 23 + branch * 30 + 23
+	widget.set_size_request(width, height)
 
-	context.set_source_rgb(0.4, 1, 0.4)
-	context.fill()
+	for c in commits.values():
+		x = width - 23 - c.deep * 86
+		y = height + 23 + c.branch * 30
 
-	context.move_to(x + 8, y)
-	context.set_source_rgb(0, 0, 0)
-	context.rel_curve_to(15, 0, 15, -30, 30, -30)
-	context.stroke()
+		context.move_to(x, y - 8)
+		context.set_source_rgb(0, 0, 0)
+		context.arc(x, y, 8, math.pi * 1.5, math.pi * .5)
+		context.line_to(x - 40, y + 8)
+		context.arc(x - 40, y, 8, math.pi * .5, math.pi * 1.5)
+		context.close_path()
+		context.stroke_preserve()
 
-	context.move_to(x - 40, y + 4)
-	context.show_text(str(repo.head.target)[:7])
+		context.set_source_rgb(0.4, 1, 0.4)
+		context.fill()
+
+		context.move_to(x - 40, y + 4)
+		context.set_source_rgb(0, 0, 0)
+		context.show_text(str(c.id)[:7])
+
+		for pid in c.parent_ids:
+			p = commits[pid]
+			px = width - 23 - p.deep * 86
+			py = height + 23 + p.branch * 30
+
+			context.move_to(px + 8, py)
+			context.set_source_rgb(0, 0, 0)
+			context.curve_to(px + 23, py, px + 23, y, px + 38, y)
+			context.line_to(x - 48, y)
+			context.stroke()
 
 	return False
 
@@ -266,7 +284,7 @@ if __name__ == '__main__':
 
 	progress = builder.get_object('statusBar')
 	darea = builder.get_object('revisionGraph')
-	loading = getRevisionGrapth(progress)
+	loading = getRevisionGrapth(progress, darea)
 	GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)
 
 	previous = head.parents[0]

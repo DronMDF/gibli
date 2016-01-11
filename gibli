@@ -38,7 +38,7 @@ class Revision:
 		self.commit = commit
 		self.id = commit.id
 		self.file_id = self.ZERO
-		self.parent_ids = set(commit.parent_ids)
+		self.parent_ids = commit.parent_ids	# Порядок важен!
 		self.child_ids = set()
 		self.deep = None
 		self.branch = None
@@ -143,7 +143,6 @@ def getRevisionGrapth(progress):
 	ready = {repo.head.target}
 	for d in range(0, 1000000):
 		actual = {r for r in ready if commits[r].child_ids.issubset(deeped)}
-		print('actual len:', len(actual))
 		if not actual:
 			break
 		deeped.update(actual)
@@ -154,7 +153,36 @@ def getRevisionGrapth(progress):
 		progress.set_fraction(len(deeped) / len(commits))
 		yield True
 
-	print("Three deep is:", max((c.deep for c in commits.values())))
+	tree_depth = max((c.deep for c in commits.values()))
+	print("Three deep is:", tree_depth)
+
+	progress.set_text('Determine branch width of tree...')
+	ready = []
+	def branch(rev, n):
+		commit = commits[rev]
+		while commit is not None and commit.branch is None:
+			commit.branch = n
+			to = commit.deep
+			if commit.parent_ids:
+				commit = commits[commit.parent_ids[0]]
+			else:
+				commit = None
+		return to + 1
+	for n in range(0, 1000):
+		unbranch = [b for b in commits.values() if b.branch is None]
+		potential = [b for b in unbranch if all((commits[c].branch is not None for c in b.child_ids))]
+		progress.set_fraction(1 - len(unbranch) / len(commits))
+		from_d = 0
+		for commit in sorted(potential, key=lambda c: c.deep):
+			if commit.branch is not None or commit.deep < from_d:
+				continue
+			print(commit.id, commit.deep, n)
+			from_d = branch(commit.id, n)
+			yield True
+		if not any((b.branch is None for b in commits.values())):
+			break
+
+	print("Three with is:", max((c.branch for c in commits.values())))
 
 	progress.hide()
 

@@ -17,20 +17,6 @@ repo = Repository(repo_path)
 
 path = os.path.relpath(args.filename, repo.workdir)
 
-def getBlobByTree(tree, item, tail):
-	entry = next((e for e in tree if e.name == item), None)
-	if not entry:
-		return Oid(hex=GIT_OID_HEX_ZERO)
-	obj = repo[entry.id]
-	if obj.type == GIT_OBJ_TREE:
-		return getBlobByTree(obj, tail[0], tail[1:])
-	assert obj.type == GIT_OBJ_BLOB
-	return obj.id
-
-def getBlob(tree, path):
-	parts = path.split(os.sep)
-	return getBlobByTree(tree, parts[0], parts[1:])
-
 class Revision:
 	ZERO = Oid(hex=GIT_OID_HEX_ZERO)
 
@@ -42,6 +28,27 @@ class Revision:
 		self.child_ids = set()
 		self.deep = None
 		self.branch = None
+
+	def getBlobByTree(self, tree, item, tail):
+		entry = next((e for e in tree if e.name == item), None)
+		if not entry:
+			return self.ZERO
+		obj = repo[entry.id]
+		if obj.type == GIT_OBJ_TREE:
+			return self.getBlobByTree(obj, tail[0], tail[1:])
+		assert obj.type == GIT_OBJ_BLOB
+		return obj.id
+
+	def loadObject(self, path):
+		parts = path.split(os.sep)
+		self.file_id = self.getBlobByTree(self.commit.tree, parts[0], parts[1:])
+
+	def getObject(self, path):
+		if self.file_id == self.ZERO:
+			self.loadObject(path)
+		if self.file_id == self.ZERO:
+			return b''
+		return repo[self.file_id].data
 
 	def addChild(self, id):
 		self.child_ids.add(id)
@@ -127,9 +134,18 @@ def getRevisionGrapth(progress, darea):
 		progress.set_fraction(len(commits) / float(len(commits) + len(todo)))
 		yield True
 
-	progress.set_text('Accumulate childs...')
+	progress.set_text('Load objects...')
 	progress.set_fraction(0)
 	ac_step = 1.0 / len(commits)
+	ac_value = 0
+	for c in commits.values():
+		c.loadObject(path)
+		ac_value += ac_step
+		progress.set_fraction(ac_value)
+		yield True
+
+	progress.set_text('Accumulate childs...')
+	progress.set_fraction(0)
 	ac_value = 0
 	for c in commits.values():
 		for p in c.parent_ids:
@@ -205,9 +221,7 @@ class Panel:
 		self.messageWidget = builder.get_object(messageId)
 
 	def show(self, commit, path):
-		blob_id = getBlob(commit.tree, path)
-		blob_text = repo[blob_id].data
-
+		blob_text = Revision(commit).getObject(path)
 		self.textWidget.get_buffer().set_text(blob_text.decode('utf8'))
 		self.revWidget.get_buffer().set_text(str(commit.id))
 		self.authorWidget.get_buffer().set_text('%s <%s>' % (commit.author.name, commit.author.email))

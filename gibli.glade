@@ -343,7 +343,6 @@
                   <object class="GtkScrolledWindow" id="scrolledwindow3">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="window_placement">top-right</property>
                     <property name="shadow_type">in</property>
                     <child>
                       <object class="GtkViewport" id="viewport1">

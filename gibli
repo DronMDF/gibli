@@ -228,7 +228,7 @@ def draw_cb(widget, context):
 
 	for c in commits.values():
 		x = width - 23 - c.deep * 86
-		y = height + 23 + c.branch * 30
+		y = 23 + c.branch * 30
 
 		context.move_to(x, y - 8)
 		context.set_source_rgb(0, 0, 0)
@@ -248,7 +248,7 @@ def draw_cb(widget, context):
 		for pid in c.parent_ids:
 			p = commits[pid]
 			px = width - 23 - p.deep * 86
-			py = height + 23 + p.branch * 30
+			py = 23 + p.branch * 30
 
 			context.move_to(px + 8, py)
 			context.set_source_rgb(0, 0, 0)

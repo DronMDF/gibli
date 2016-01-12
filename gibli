@@ -252,7 +252,11 @@ def draw_cb(widget, context):
 		context.close_path()
 		context.stroke_preserve()
 
-		context.set_source_rgb(0.4, 1, 0.4)
+		if c.file_id == c.ZERO:
+			context.set_source_rgb(0.7, 0.7, 0.7)	# Gray
+		else:
+			# TODO: match with original
+			context.set_source_rgb(0.4, 1, 0.4)
 		context.fill()
 
 		context.move_to(x - 40, y + 4)

@@ -153,54 +153,6 @@ class Panel:
 		self.messageWidget.get_buffer().set_text(commit.message.splitlines()[0])
 
 
-def draw_cb(widget, context):
-	try:
-		deep = max((c.deep for c in commits.values()))
-		branch = max((c.branch for c in commits.values()))
-	except:
-		# Не определили еще наполнение
-		return False
-
-	width = 63 + deep * 86 + 23
-	height = 23 + branch * 30 + 23
-	widget.set_size_request(width, height)
-
-	for c in commits.values():
-		x = width - 23 - c.deep * 86
-		y = 23 + c.branch * 30
-
-		context.move_to(x, y - 8)
-		context.set_source_rgb(0, 0, 0)
-		context.arc(x, y, 8, math.pi * 1.5, math.pi * .5)
-		context.line_to(x - 40, y + 8)
-		context.arc(x - 40, y, 8, math.pi * .5, math.pi * 1.5)
-		context.close_path()
-		context.stroke_preserve()
-
-		if c.file_id == c.ZERO:
-			context.set_source_rgb(0.7, 0.7, 0.7)	# Gray
-		else:
-			# TODO: match with original
-			context.set_source_rgb(0.4, 1, 0.4)
-		context.fill()
-
-		context.move_to(x - 40, y + 4)
-		context.set_source_rgb(0, 0, 0)
-		context.show_text(str(c.id)[:7])
-
-		for pid in c.parent_ids:
-			p = commits[pid]
-			px = width - 23 - p.deep * 86
-			py = 23 + p.branch * 30
-
-			context.move_to(px + 8, py)
-			context.set_source_rgb(0, 0, 0)
-			context.curve_to(px + 23, py, px + 23, y, px + 38, y)
-			context.line_to(x - 48, y)
-			context.stroke()
-
-	return False
-
 class Application:
 	def __init__(self, repo, path):
 		self.builder = Gtk.Builder()
@@ -224,10 +176,57 @@ class Application:
 		self.right_panel.show(head, path)
 
 		darea = self.get_object('revisionGraph')
-		darea.connect('draw', draw_cb)
+		darea.connect('draw', self.draw_cb)
 
 	def get_object(self, id):
 		return self.builder.get_object(id)
+
+	def draw_cb(self, widget, context):
+		try:
+			deep = max((c.deep for c in commits.values()))
+			branch = max((c.branch for c in commits.values()))
+		except:
+			# Не определили еще наполнение
+			return False
+
+		width = 63 + deep * 86 + 23
+		height = 23 + branch * 30 + 23
+		widget.set_size_request(width, height)
+
+		for c in commits.values():
+			x = width - 23 - c.deep * 86
+			y = 23 + c.branch * 30
+
+			context.move_to(x, y - 8)
+			context.set_source_rgb(0, 0, 0)
+			context.arc(x, y, 8, math.pi * 1.5, math.pi * .5)
+			context.line_to(x - 40, y + 8)
+			context.arc(x - 40, y, 8, math.pi * .5, math.pi * 1.5)
+			context.close_path()
+			context.stroke_preserve()
+
+			if c.file_id == c.ZERO:
+				context.set_source_rgb(0.7, 0.7, 0.7)	# Gray
+			else:
+				# TODO: match with original
+				context.set_source_rgb(0.4, 1, 0.4)
+			context.fill()
+
+			context.move_to(x - 40, y + 4)
+			context.set_source_rgb(0, 0, 0)
+			context.show_text(str(c.id)[:7])
+
+			for pid in c.parent_ids:
+				p = commits[pid]
+				px = width - 23 - p.deep * 86
+				py = 23 + p.branch * 30
+
+				context.move_to(px + 8, py)
+				context.set_source_rgb(0, 0, 0)
+				context.curve_to(px + 23, py, px + 23, y, px + 38, y)
+				context.line_to(x - 48, y)
+				context.stroke()
+		return False
 
 
 if __name__ == '__main__':

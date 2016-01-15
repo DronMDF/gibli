@@ -49,8 +49,10 @@ class Revision:
 
 commits = dict()
 
-def getRevisionGrapth(progress, darea):
+def getRevisionGrapth(app):
 	todo = {repo.head.peel()}
+
+	progress = app.get_object('statusBar')
 
 	progress.set_text('Loading revisions...')
 	while todo:
@@ -131,19 +133,10 @@ def getRevisionGrapth(progress, darea):
 	print("Three width is:", max((c.branch for c in commits.values())))
 
 	progress.hide()
+
+	darea = app.get_object('revisionGraph')
 	darea.queue_draw()
 
-
-class MainWindow(Gtk.Window):
-	def __init__(self):
-		super().__init__(title=path + ' - Gibli')
-		self.maximize()
-
-		self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
-		self.add(self.vbox)
-
-		self.textview = Get.TextView()
-		self.vbox.pack_start(self.textview, True, True, 0)
 
 class Panel:
 	def __init__(self, builder, textId, revId, authorId, messageId):
@@ -230,6 +223,9 @@ class Application:
 		head = repo.head.peel()
 		self.right_panel.show(head, path)
 
+		darea = self.get_object('revisionGraph')
+		darea.connect('draw', draw_cb)
+
 	def get_object(self, id):
 		return self.builder.get_object(id)
 
@@ -249,11 +245,7 @@ if __name__ == '__main__':
 
 	app = Application(repo, path)
 
-	progress = app.get_object('statusBar')
-	darea = app.get_object('revisionGraph')
-	loading = getRevisionGrapth(progress, darea)
+	loading = getRevisionGrapth(app)
 	GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)
-
-	darea.connect('draw', draw_cb)
 
 	Gtk.main()

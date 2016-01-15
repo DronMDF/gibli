@@ -59,64 +59,6 @@ class Revision:
 
 commits = dict()
 
-#def dropIdenticalChains():
-#	to_drop = set()
-#	for c in commits.values():
-#		if not c.parent_ids or not c.child_ids:
-#			continue
-#		parents = [commits[pp] for pp in c.parent_ids]
-#		if any((pp.file_id != c.file_id for pp in parents)):
-#			continue
-#		childs = [commits[cc] for cc in c.child_ids]
-#		if any((cc.file_id != c.file_id for cc in childs)):
-#			continue
-#		# unlink current and link childs and parent
-#		for cc in childs:
-#			cc.parent_ids.remove(c.id)
-#			cc.parent_ids.update(c.parent_ids)
-#		for pp in parents:
-#			pp.child_ids.remove(c.id)
-#			pp.child_ids.update(c.child_ids)
-#		# Cleanup current
-#		c.parent_ids.clear()
-#		c.child_ids.clear()
-#		to_drop.add(c.id)
-#	for cid in to_drop:
-#		del commits[cid]
-#	return bool(to_drop)
-
-
-#while dropIdenticalChains():
-#	pass
-
-
-#def cutNonPresent():
-#	root = next((c for c in commits.values() if not c.parent_ids), None)
-#	if root is None or root.file_id != Oid(hex=GIT_OID_HEX_ZERO):
-#		return False
-#	if not root.child_ids:	# HEAD revision
-#		return False
-#	for p in root.child_ids:
-#		parent = commits[p]
-#		parent.parent_ids.remove(root.id)
-#	del commits[root.id]
-#	return True
-
-
-#while cutNonPresent():
-#	pass
-
-
-#print('digraph {')
-
-#for c in commits.values():
-#	print('\t"%s" [label="%s"];' % (str(c.id)[:7], c.label()))
-#	for p in c.parent_ids:
-#		print('\t"%s" -> "%s";' % (str(p)[:7], str(c.id)[:7]))
-	#print(str(c.id)[:7], [str(i)[:7] for i in c.parent_ids], str(c.file_id)[:7])
-
-#print('}')
-
 def getRevisionGrapth(progress, darea):
 	todo = {repo.head.peel()}
 

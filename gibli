@@ -7,16 +7,6 @@ import signal
 from pygit2 import discover_repository, Oid, Repository, GIT_OBJ_TREE, GIT_OBJ_BLOB, GIT_OID_HEX_ZERO
 from gi.repository import Gtk, GLib
 
-parser = argparse.ArgumentParser(description='GIT blame interface')
-parser.add_argument('filename', type=str, nargs='?', help='filename to analisys')
-args = parser.parse_args()
-
-cwd = os.getcwd()
-repo_path = discover_repository(cwd)
-repo = Repository(repo_path)
-
-path = os.path.relpath(args.filename, repo.workdir)
-
 class Revision:
 	ZERO = Oid(hex=GIT_OID_HEX_ZERO)
 
@@ -219,7 +209,7 @@ def draw_cb(widget, context):
 	return False
 
 class Application:
-	def __init__(self):
+	def __init__(self, repo, path):
 		self.builder = Gtk.Builder()
 		self.builder.add_from_file(os.path.dirname(__file__) + '/gibli.glade')
 
@@ -234,6 +224,12 @@ class Application:
 		height = paned.get_allocated_height()
 		paned.set_position(height * 0.7)
 
+		self.left_panel = Panel(self, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
+		self.right_panel = Panel(self, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
+
+		head = repo.head.peel()
+		self.right_panel.show(head, path)
+
 	def get_object(self, id):
 		return self.builder.get_object(id)
 
@@ -241,21 +237,22 @@ class Application:
 if __name__ == '__main__':
 	signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-	app = Application()
+	parser = argparse.ArgumentParser(description='GIT blame interface')
+	parser.add_argument('filename', type=str, nargs='?', help='filename to analisys')
+	args = parser.parse_args()
 
-	leftPanel = Panel(app, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
-	rightPanel = Panel(app, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
+	cwd = os.getcwd()
+	repo_path = discover_repository(cwd)
+	repo = Repository(repo_path)
 
-	head = repo.head.peel()
-	rightPanel.show(head, path)
+	path = os.path.relpath(args.filename, repo.workdir)
+
+	app = Application(repo, path)
 
 	progress = app.get_object('statusBar')
 	darea = app.get_object('revisionGraph')
 	loading = getRevisionGrapth(progress, darea)
 	GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)
-
-	previous = head.parents[0]
-	leftPanel.show(previous, path)
 
 	darea.connect('draw', draw_cb)
 

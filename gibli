@@ -3,12 +3,12 @@
 import argparse
 import math
 import os
+import pygit2
 import signal
-from pygit2 import discover_repository, Oid, Repository, GIT_OBJ_TREE, GIT_OBJ_BLOB, GIT_OID_HEX_ZERO
 from gi.repository import Gtk, GLib
 
 class Revision:
-	ZERO = Oid(hex=GIT_OID_HEX_ZERO)
+	ZERO = pygit2.Oid(hex=pygit2.GIT_OID_HEX_ZERO)
 
 	def __init__(self, commit):
 		self.commit = commit
@@ -24,9 +24,9 @@ class Revision:
 		if not entry:
 			return self.ZERO
 		obj = repo[entry.id]
-		if obj.type == GIT_OBJ_TREE:
+		if obj.type == pygit2.GIT_OBJ_TREE:
 			return self.getBlobByTree(obj, tail[0], tail[1:])
-		assert obj.type == GIT_OBJ_BLOB
+		assert obj.type == pygit2.GIT_OBJ_BLOB
 		return obj.id
 
 	def loadObject(self, path):
@@ -60,9 +60,6 @@ def getRevisionGrapth(app):
 		if commit.id in commits:
 			continue
 		revision = Revision(commit)
-		#if revision.file_id == Oid(hex=GIT_OID_HEX_ZERO):
-		#	revision.parent_ids.clear()
-		#else:
 		todo.update(commit.parents)
 		commits[commit.id] = revision
 		progress.set_fraction(len(commits) / float(len(commits) + len(todo)))
@@ -237,8 +234,8 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	cwd = os.getcwd()
-	repo_path = discover_repository(cwd)
-	repo = Repository(repo_path)
+	repo_path = pygit2.discover_repository(cwd)
+	repo = pygit2.Repository(repo_path)
 
 	path = os.path.relpath(args.filename, repo.workdir)
 

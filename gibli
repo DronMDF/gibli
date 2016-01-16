@@ -10,8 +10,9 @@ from gi.repository import Gtk, GLib
 class Revision:
 	ZERO = pygit2.Oid(hex=pygit2.GIT_OID_HEX_ZERO)
 
-	def __init__(self, commit):
+	def __init__(self, commit, repo):
 		self.commit = commit
+		self.repo = repo
 		self.id = commit.id
 		self.file_id = self.ZERO
 		self.parent_ids = commit.parent_ids	# Порядок важен!
@@ -23,7 +24,7 @@ class Revision:
 		entry = next((e for e in tree if e.name == item), None)
 		if not entry:
 			return self.ZERO
-		obj = repo[entry.id]
+		obj = self.repo.get_commit(entry.id)
 		if obj.type == pygit2.GIT_OBJ_TREE:
 			return self.getBlobByTree(obj, tail[0], tail[1:])
 		assert obj.type == pygit2.GIT_OBJ_BLOB
@@ -38,7 +39,7 @@ class Revision:
 			self.loadObject(path)
 		if self.file_id == self.ZERO:
 			return b''
-		return repo[self.file_id].data
+		return self.repo.get_commit(self.file_id).data
 
 	def addChild(self, id):
 		self.child_ids.add(id)
@@ -47,29 +48,45 @@ class Revision:
 		return '%s:%s' % (str(self.id)[:7], str(self.file_id)[:7])
 
 
-commits = dict()
+class Repository:
+	def __init__(self):
+		cwd = os.getcwd()
+		repo_path = pygit2.discover_repository(cwd)
+		self.repo = pygit2.Repository(repo_path)
 
-def getRevisionGrapth(app):
-	todo = {repo.head.peel()}
+		self.commits = dict()
+
+	def get_workdir(self):
+		return self.repo.workdir
+
+	def head(self):
+		return self.repo.head.peel()
+
+	def get_commit(self, id):
+		return self.repo[id]
+
+
+def getRevisionGrapth(app, repo):
+	todo = {repo.head()}
 
 	progress = app.get_object('statusBar')
 
 	progress.set_text('Loading revisions...')
 	while todo:
 		commit = todo.pop()
-		if commit.id in commits:
+		if commit.id in repo.commits:
 			continue
-		revision = Revision(commit)
+		revision = Revision(commit, repo)
 		todo.update(commit.parents)
-		commits[commit.id] = revision
-		progress.set_fraction(len(commits) / float(len(commits) + len(todo)))
+		repo.commits[commit.id] = revision
+		progress.set_fraction(len(repo.commits) / float(len(repo.commits) + len(todo)))
 		yield True
 
 	progress.set_text('Load objects...')
 	progress.set_fraction(0)
-	ac_step = 1.0 / len(commits)
+	ac_step = 1.0 / len(repo.commits)
 	ac_value = 0
-	for c in commits.values():
+	for c in repo.commits.values():
 		c.loadObject(path)
 		ac_value += ac_step
 		progress.set_fraction(ac_value)
@@ -78,56 +95,56 @@ def getRevisionGrapth(app):
 	progress.set_text('Accumulate childs...')
 	progress.set_fraction(0)
 	ac_value = 0
-	for c in commits.values():
+	for c in repo.commits.values():
 		for p in c.parent_ids:
-			commits[p].addChild(c.id)
+			repo.commits[p].addChild(c.id)
 		ac_value += ac_step
 		progress.set_fraction(ac_value)
 		yield True
 
 	progress.set_text('Determine deep of tree...')
 	deeped = set()
-	ready = {repo.head.target}
+	ready = {repo.head().id}
 	for d in range(0, 1000000):
-		actual = {r for r in ready if commits[r].child_ids.issubset(deeped)}
+		actual = {r for r in ready if repo.commits[r].child_ids.issubset(deeped)}
 		if not actual:
 			break
 		deeped.update(actual)
 		ready.difference_update(actual)
 		for a in actual:
-			commits[a].deep = d
-			ready.update(commits[a].parent_ids)
-		progress.set_fraction(len(deeped) / len(commits))
+			repo.commits[a].deep = d
+			ready.update(repo.commits[a].parent_ids)
+		progress.set_fraction(len(deeped) / len(repo.commits))
 		yield True
 
-	tree_depth = max((c.deep for c in commits.values()))
+	tree_depth = max((c.deep for c in repo.commits.values()))
 	print("Three deep is:", tree_depth)
 
 	progress.set_text('Determine branch width of tree...')
 	ready = []
 	def branch(rev, n):
-		commit = commits[rev]
+		commit = repo.commits[rev]
 		while commit.branch is None:
 			commit.branch = n
 			if commit.parent_ids:
-				commit = commits[commit.parent_ids[0]]
+				commit = repo.commits[commit.parent_ids[0]]
 			else:
 				return commit.deep + 1
 		return commit.deep
 	for n in range(0, 1000):
-		unbranch = [b for b in commits.values() if b.branch is None]
-		potential = [b for b in unbranch if all((commits[c].branch is not None for c in b.child_ids))]
-		progress.set_fraction(1 - len(unbranch) / len(commits))
+		unbranch = [b for b in repo.commits.values() if b.branch is None]
+		potential = [b for b in unbranch if all((repo.commits[c].branch is not None for c in b.child_ids))]
+		progress.set_fraction(1 - len(unbranch) / len(repo.commits))
 		from_d = 0
 		for commit in sorted(potential, key=lambda c: c.deep):
 			if commit.branch is not None or commit.deep < from_d:
 				continue
 			from_d = branch(commit.id, n)
 			yield True
-		if not any((b.branch is None for b in commits.values())):
+		if not any((b.branch is None for b in repo.commits.values())):
 			break
 
-	print("Three width is:", max((c.branch for c in commits.values())))
+	print("Three width is:", max((c.branch for c in repo.commits.values())))
 
 	progress.hide()
 
@@ -142,8 +159,8 @@ class Panel:
 		self.authorWidget = builder.get_object(authorId)
 		self.messageWidget = builder.get_object(messageId)
 
-	def show(self, commit, path):
-		blob_text = Revision(commit).getObject(path)
+	def show(self, commit, repo, path):
+		blob_text = Revision(commit, repo).getObject(path)
 		self.textWidget.get_buffer().set_text(blob_text.decode('utf8'))
 		self.revWidget.get_buffer().set_text(str(commit.id))
 		self.authorWidget.get_buffer().set_text('%s <%s>' % (commit.author.name, commit.author.email))
@@ -152,6 +169,8 @@ class Panel:
 
 class Application:
 	def __init__(self, repo, path):
+		self.repo = repo
+
 		self.builder = Gtk.Builder()
 		self.builder.add_from_file(os.path.dirname(__file__) + '/gibli.glade')
 
@@ -169,8 +188,8 @@ class Application:
 		self.left_panel = Panel(self, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
 		self.right_panel = Panel(self, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
 
-		head = repo.head.peel()
-		self.right_panel.show(head, path)
+		head = repo.head()
+		self.right_panel.show(head, repo, path)
 
 		darea = self.get_object('revisionGraph')
 		darea.connect('draw', self.draw_cb)
@@ -180,8 +199,8 @@ class Application:
 
 	def draw_cb(self, widget, context):
 		try:
-			deep = max((c.deep for c in commits.values()))
-			branch = max((c.branch for c in commits.values()))
+			deep = max((c.deep for c in self.repo.commits.values()))
+			branch = max((c.branch for c in self.repo.commits.values()))
 		except:
 			# Не определили еще наполнение
 			return False
@@ -190,7 +209,7 @@ class Application:
 		height = 23 + branch * 30 + 23
 		widget.set_size_request(width, height)
 
-		for c in commits.values():
+		for c in self.repo.commits.values():
 			x = width - 23 - c.deep * 86
 			y = 23 + c.branch * 30
 
@@ -214,7 +233,7 @@ class Application:
 			context.show_text(str(c.id)[:7])
 
 			for pid in c.parent_ids:
-				p = commits[pid]
+				p = self.repo.commits[pid]
 				px = width - 23 - p.deep * 86
 				py = 23 + p.branch * 30
 
@@ -233,15 +252,12 @@ if __name__ == '__main__':
 	parser.add_argument('filename', type=str, nargs='?', help='filename to analisys')
 	args = parser.parse_args()
 
-	cwd = os.getcwd()
-	repo_path = pygit2.discover_repository(cwd)
-	repo = pygit2.Repository(repo_path)
-
-	path = os.path.relpath(args.filename, repo.workdir)
+	repo = Repository()
+	path = os.path.relpath(args.filename, repo.get_workdir())
 
 	app = Application(repo, path)
 
-	loading = getRevisionGrapth(app)
+	loading = getRevisionGrapth(app, repo)
 	GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)
 
 	Gtk.main()

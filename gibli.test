@@ -1,9 +1,32 @@
 #!/usr/bin/env python3
 
+import os
+import sys
+import types
 import unittest
 
-class TestReposirity(unittest.TestCase):
+with open('gibli') as f:
+	gibli_code = compile(f.read(), 'gibli', 'exec')
+gibli = types.ModuleType('gibli')
+exec(gibli_code, gibli.__dict__)
+
+class RepositoryUT(gibli.Repository):
 	pass
+
+class TestReposirity(unittest.TestCase):
+	def testReposytoryChainOfCommits(self):
+		# Given
+		tree = {'A': ['B'], 'B': []}
+		repo = RepositoryUT()
+		# When
+		for _ in repo.load(): pass
+		# Then
+		graph = repo.get_graph()
+		self.assertEqual(graph['A'].deep, 0)
+		self.assertEqual(graph['A'].branch, 0)
+		self.assertEqual(graph['B'].deep, 1)
+		self.assertEqual(graph['B'].branch, 1)
+
 
 if __name__ == '__main__':
 	unittest.main()

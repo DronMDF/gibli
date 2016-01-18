@@ -69,9 +69,7 @@ class Repository:
 def getRevisionGrapth(app, repo):
 	todo = {repo.head()}
 
-	progress = app.get_object('statusBar')
-
-	progress.set_text('Loading revisions...')
+	app.set_status_text('Loading revisions...')
 	while todo:
 		commit = todo.pop()
 		if commit.id in repo.commits:
@@ -79,30 +77,30 @@ def getRevisionGrapth(app, repo):
 		revision = Revision(commit, repo)
 		todo.update(commit.parents)
 		repo.commits[commit.id] = revision
-		progress.set_fraction(len(repo.commits) / float(len(repo.commits) + len(todo)))
+		app.set_status_progress(len(repo.commits) / float(len(repo.commits) + len(todo)))
 		yield True
 
-	progress.set_text('Load objects...')
-	progress.set_fraction(0)
+	app.set_status_text('Load objects...')
+	app.set_status_progress(0)
 	ac_step = 1.0 / len(repo.commits)
 	ac_value = 0
 	for c in repo.commits.values():
 		c.loadObject(path)
 		ac_value += ac_step
-		progress.set_fraction(ac_value)
+		app.set_status_progress(ac_value)
 		yield True
 
-	progress.set_text('Accumulate childs...')
-	progress.set_fraction(0)
+	app.set_status_text('Accumulate childs...')
+	app.set_status_progress(0)
 	ac_value = 0
 	for c in repo.commits.values():
 		for p in c.parent_ids:
 			repo.commits[p].addChild(c.id)
 		ac_value += ac_step
-		progress.set_fraction(ac_value)
+		app.set_status_progress(ac_value)
 		yield True
 
-	progress.set_text('Determine deep of tree...')
+	app.set_status_text('Determine deep of tree...')
 	deeped = set()
 	ready = {repo.head().id}
 	for d in range(0, 1000000):
@@ -114,13 +112,13 @@ def getRevisionGrapth(app, repo):
 		for a in actual:
 			repo.commits[a].deep = d
 			ready.update(repo.commits[a].parent_ids)
-		progress.set_fraction(len(deeped) / len(repo.commits))
+		app.set_status_progress(len(deeped) / len(repo.commits))
 		yield True
 
 	tree_depth = max((c.deep for c in repo.commits.values()))
 	print("Three deep is:", tree_depth)
 
-	progress.set_text('Determine branch width of tree...')
+	app.set_status_text('Determine branch width of tree...')
 	ready = []
 	def branch(rev, n):
 		commit = repo.commits[rev]
@@ -134,7 +132,7 @@ def getRevisionGrapth(app, repo):
 	for n in range(0, 1000):
 		unbranch = [b for b in repo.commits.values() if b.branch is None]
 		potential = [b for b in unbranch if all((repo.commits[c].branch is not None for c in b.child_ids))]
-		progress.set_fraction(1 - len(unbranch) / len(repo.commits))
+		app.set_status_progress(1 - len(unbranch) / len(repo.commits))
 		from_d = 0
 		for commit in sorted(potential, key=lambda c: c.deep):
 			if commit.branch is not None or commit.deep < from_d:
@@ -146,10 +144,8 @@ def getRevisionGrapth(app, repo):
 
 	print("Three width is:", max((c.branch for c in repo.commits.values())))
 
-	progress.hide()
-
-	darea = app.get_object('revisionGraph')
-	darea.queue_draw()
+	app.hide_status()
+	app.redraw_revision_grapth()
 
 
 class Panel:
@@ -191,11 +187,28 @@ class Application:
 		head = repo.head()
 		self.right_panel.show(head, repo, path)
 
-		darea = self.get_object('revisionGraph')
-		darea.connect('draw', self.draw_cb)
+		self.darea = self.get_object('revisionGraph')
+		self.darea.connect('draw', self.draw_cb)
+
+		self.progress = self.get_object('statusBar')
 
 	def get_object(self, id):
 		return self.builder.get_object(id)
+
+	def set_status_text(self, text):
+		self.progress.set_text(text)
+
+	def set_status_progress(self, progress):
+		self.progress.set_fraction(progress)
+
+	def hide_status(self):
+		self.progress.hide()
+
+	def show_status(self):
+		self.progress.show()
+
+	def redraw_revision_grapth(self):
+		self.darea.queue_draw()
 
 	def draw_cb(self, widget, context):
 		try:

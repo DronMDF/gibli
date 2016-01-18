@@ -10,16 +10,53 @@ with open('gibli') as f:
 gibli = types.ModuleType('gibli')
 exec(gibli_code, gibli.__dict__)
 
+
+class FakeApplication:
+	def set_status_text(self, text): pass
+	def set_status_progress(self, progress): pass
+	def hide_status(self): pass
+	def redraw_revision_graph(self): pass
+
+
+class FakeCommit:
+	def __init__(self, id, repo):
+		self.id = id
+		self.parent_ids = repo.get_parent_ids(id)
+		self.parents = repo.get_parents(id)
+		self.tree = []
+
+
+class FakeRepo:
+	def __init__(self, tree, head):
+		self.tree = tree
+		class Head: pass
+		self.head = Head()
+		self.head.peel = lambda: FakeCommit(head, self)
+		self.head.target = head
+
+	def get_parent_ids(self, id):
+		return self.tree[id]
+
+	def get_parents(self, id):
+		return [FakeCommit(p, self) for p in self.tree[id]]
+
+
 class RepositoryUT(gibli.Repository):
-	pass
+	def __init__(self, tree, head):
+		self.repo = FakeRepo(tree, head)
+		self.commits = dict()
+
+	def get_graph(self):
+		return self.commits
+
 
 class TestReposirity(unittest.TestCase):
 	def testReposytoryChainOfCommits(self):
 		# Given
 		tree = {'A': ['B'], 'B': []}
-		repo = RepositoryUT()
+		repo = RepositoryUT(tree, 'A')
 		# When
-		for _ in repo.load(): pass
+		for _ in repo.load(FakeApplication(), ''): pass
 		# Then
 		graph = repo.get_graph()
 		self.assertEqual(graph['A'].deep, 0)

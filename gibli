@@ -65,7 +65,7 @@ class Repository:
 	def get_commit(self, id):
 		return self.repo[id]
 
-	def load(self, app):
+	def load(self, app, path):
 		todo = {self.repo.head.peel()}
 
 		app.set_status_text('Loading revisions...')
@@ -73,7 +73,7 @@ class Repository:
 			commit = todo.pop()
 			if commit.id in self.commits:
 				continue
-			revision = Revision(commit, repo)
+			revision = Revision(commit, self)
 			todo.update(commit.parents)
 			self.commits[commit.id] = revision
 			app.set_status_progress(len(self.commits) / float(len(self.commits) + len(todo)))
@@ -144,7 +144,7 @@ class Repository:
 		print("Three width is:", max((c.branch for c in self.commits.values())))
 
 		app.hide_status()
-		app.redraw_revision_grapth()
+		app.redraw_revision_graph()
 
 
 class Panel:
@@ -206,7 +206,7 @@ class Application:
 	def show_status(self):
 		self.progress.show()
 
-	def redraw_revision_grapth(self):
+	def redraw_revision_graph(self):
 		self.darea.queue_draw()
 
 	def draw_cb(self, widget, context):
@@ -269,7 +269,7 @@ if __name__ == '__main__':
 
 	app = Application(repo, path)
 
-	loading = repo.load(app)
+	loading = repo.load(app, path)
 	GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)
 
 	Gtk.main()

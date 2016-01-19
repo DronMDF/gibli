@@ -49,6 +49,9 @@ class Revision:
 
 
 class Repository:
+	MAX_BRANCHES = 500
+	MAX_DEEP = 1000
+
 	def __init__(self):
 		cwd = os.getcwd()
 		repo_path = pygit2.discover_repository(cwd)
@@ -66,82 +69,50 @@ class Repository:
 		return self.repo[id]
 
 	def load(self, app, path):
-		todo = {self.repo.head.peel()}
+		new_commits = dict()
 
 		app.set_status_text('Loading revisions...')
-		while todo:
-			commit = todo.pop()
-			if commit.id in self.commits:
-				continue
-			revision = Revision(commit, self)
-			todo.update(commit.parents)
-			self.commits[commit.id] = revision
-			app.set_status_progress(len(self.commits) / float(len(self.commits) + len(todo)))
+		deep = 0
+		deep_changer = set()
+		potential = [self.repo.head.target] + [None] * (self.MAX_BRANCHES - 1)
+		for c in self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL):
+			revision = Revision(c, self)
+			if revision.id in deep_changer:
+				deep += 1
+				if deep > self.MAX_DEEP:
+					break
+				deep_changer.clear()
+			revision.deep = deep
+			revision.branch = potential.index(revision.id)
+			new_commits[revision.id] = revision
+
+			for i, c in enumerate(potential):
+				if c == revision.id:
+					potential[i] = None
+			if revision.parent_ids:
+				potential[revision.branch] = revision.parent_ids[0]
+				for p in revision.parent_ids[1:]:
+					branch = potential.index(None)
+					potential[branch] = p
+			deep_changer.update(set(revision.parent_ids))
+
+			app.set_status_progress(deep / self.MAX_DEEP)
 			yield True
+
+		print("Three deep is:", deep - 1)
+		print("Three width is:", max((c.branch for c in new_commits.values())))
 
 		app.set_status_text('Load objects...')
 		app.set_status_progress(0)
-		ac_step = 1.0 / len(self.commits)
+		ac_step = 1.0 / len(new_commits)
 		ac_value = 0
-		for c in self.commits.values():
+		for c in new_commits.values():
 			c.loadObject(path)
 			ac_value += ac_step
 			app.set_status_progress(ac_value)
 			yield True
 
-		app.set_status_text('Accumulate childs...')
-		app.set_status_progress(0)
-		ac_value = 0
-		for c in self.commits.values():
-			for p in c.parent_ids:
-				self.commits[p].addChild(c.id)
-			ac_value += ac_step
-			app.set_status_progress(ac_value)
-			yield True
-
-		app.set_status_text('Determine deep of tree...')
-		deeped = set()
-		ready = {self.repo.head.target}
-		for d in range(0, 1000000):
-			actual = {r for r in ready if self.commits[r].child_ids.issubset(deeped)}
-			if not actual:
-				break
-			deeped.update(actual)
-			ready.difference_update(actual)
-			for a in actual:
-				self.commits[a].deep = d
-				ready.update(self.commits[a].parent_ids)
-			app.set_status_progress(len(deeped) / len(self.commits))
-			yield True
-
-		tree_depth = max((c.deep for c in self.commits.values()))
-		print("Three deep is:", tree_depth)
-
-		app.set_status_text('Determine branch width of tree...')
-		ready = []
-		def branch(rev, n):
-			commit = self.commits[rev]
-			while commit.branch is None:
-				commit.branch = n
-				if commit.parent_ids:
-					commit = self.commits[commit.parent_ids[0]]
-				else:
-					return commit.deep + 1
-			return commit.deep
-		for n in range(0, 1000):
-			unbranch = [b for b in self.commits.values() if b.branch is None]
-			potential = [b for b in unbranch if all((self.commits[c].branch is not None for c in b.child_ids))]
-			app.set_status_progress(1 - len(unbranch) / len(self.commits))
-			from_d = 0
-			for commit in sorted(potential, key=lambda c: c.deep):
-				if commit.branch is not None or commit.deep < from_d:
-					continue
-				from_d = branch(commit.id, n)
-				yield True
-			if not any((b.branch is None for b in self.commits.values())):
-				break
-
-		print("Three width is:", max((c.branch for c in self.commits.values())))
+		self.commits = new_commits
 
 		app.hide_status()
 		app.redraw_revision_graph()
@@ -245,6 +216,13 @@ class Application:
 			context.show_text(str(c.id)[:7])
 
 			for pid in c.parent_ids:
+				if pid not in self.repo.commits:
+					# History may be not complete
+					context.move_to(x - 48, y)
+					context.set_source_rgb(0, 0, 0)
+					context.line_to(0, y)
+					context.stroke()
+					continue
 				p = self.repo.commits[pid]
 				px = width - 23 - p.deep * 86
 				py = 23 + p.branch * 30

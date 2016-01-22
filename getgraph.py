@@ -22,9 +22,6 @@ def walker(oid):
 
 commits = {commit.id: Rev(commit, deep) for deep, commit in enumerate(walker(repo.head.target))}
 
-# берем непервых родителей и начинаем раскручивать ветки оттуда
-branch_heads = [(p, r.id) for r in commits.values() for p in r.parent_ids[1:] if r.deep < 1000]
-
 def deep_propagator(id, deep):
 	def deep_generator(id, deep):
 		if id in commits and commits[id].deep < deep:
@@ -35,6 +32,9 @@ def deep_propagator(id, deep):
 		todo = list(itertools.chain.from_iterable(deep_generator(id, d) for id in todo))
 		if not todo:
 			break
+
+# берем непервых родителей и начинаем раскручивать ветки оттуда
+branch_heads = [(p, r.id) for r in commits.values() for p in r.parent_ids[1:] if r.deep < 1000]
 
 while branch_heads:
 	bh, br = branch_heads.pop(0)
@@ -57,6 +57,7 @@ while branch_heads:
 			break
 
 for c in commits.values():
+	c.branch = None
 	if len(c.parent_ids) > 1 and c.deep < 1000:
 		c.deep = max((commits[p].deep - 1 for p in c.parent_ids if p in commits))
 		for p in c.parent_ids:
@@ -69,3 +70,30 @@ for o in outofscope:
 	del commits[o]
 
 print('after cleanup', len(commits), max((r.deep for r in commits.values())))
+
+cr = repo.head.target
+while cr in commits:
+	commits[cr].branch = 0
+	cr = commits[cr].parent_ids[0] if commits[cr].parent_ids else None
+
+
+def branch_starter(deep):
+	for rr in (r for r in commits.values() if r.deep == deep and r.branch is not None):
+		if any((commits[p].branch is None for p in rr.parent_ids if p in commits)):
+			return rr
+
+
+for branch in range(1, 1000):
+	if any((v.branch is None for v in commits.values())):
+		deep = 0
+		while deep < 1000:
+			br = branch_starter(deep)
+			while br is not None:
+				br = next((commits[p] for p in br.parent_ids if p in commits and commits[p].branch is None), None)
+				if br is not None:
+					br.branch = branch
+					deep = br.deep
+			deep += 1
+		print(branch, len([v for v in commits.values() if v.branch is None]))
+	else:
+		break

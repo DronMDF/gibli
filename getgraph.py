@@ -25,13 +25,13 @@ commits = {commit.id: Rev(commit, deep) for deep, commit in enumerate(walker(rep
 # берем непервых родителей и начинаем раскручивать ветки оттуда
 branch_heads = [(p, r.id) for r in commits.values() for p in r.parent_ids[1:] if r.deep < 1000]
 
-def deep_generator(id, deep):
-	if id in commits and commits[id].deep < deep:
-		commits[id].deep = deep
-		yield from commits[id].parent_ids
 def deep_propagator(id, deep):
+	def deep_generator(id, deep):
+		if id in commits and commits[id].deep < deep:
+			commits[id].deep = deep
+			yield from commits[id].parent_ids
 	todo = [id]
-	for d in range(deep, 1000):
+	for d in range(deep, 10000):
 		todo = list(itertools.chain.from_iterable(deep_generator(id, d) for id in todo))
 		if not todo:
 			break
@@ -56,9 +56,16 @@ while branch_heads:
 					deep_propagator(p, deep + 1)
 			break
 
+for c in commits.values():
+	if len(c.parent_ids) > 1 and c.deep < 1000:
+		c.deep = max((commits[p].deep - 1 for p in c.parent_ids if p in commits))
+		for p in c.parent_ids:
+			deep_propagator(p, c.deep + 1)
+
+print('before cleanup:', len(commits), max((r.deep for r in commits.values())))
+
 outofscope = [r.id for r in commits.values() if r.deep > 1000]
 for o in outofscope:
 	del commits[o]
 
-print(len(commits))
-print(max((r.deep for r in commits.values())))
+print('after cleanup', len(commits), max((r.deep for r in commits.values())))

@@ -162,6 +162,8 @@ class Application:
 		self.darea = self.get_object('revisionGraph')
 		self.darea.connect('draw', self.draw_cb)
 
+		self.viewport = self.get_object('viewport1')
+
 		self.progress = self.get_object('statusBar')
 
 	def get_object(self, id):
@@ -234,6 +236,9 @@ class Application:
 				context.curve_to(px + 23, py, px + 23, y, px + 38, y)
 				context.line_to(x - 48, y)
 				context.stroke()
+
+		hadj = self.viewport.get_hadjustment()
+		hadj.set_value(hadj.get_upper() - hadj.get_page_size())
 		return False
 
 

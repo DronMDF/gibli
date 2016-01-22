@@ -77,23 +77,23 @@ while cr in commits:
 	cr = commits[cr].parent_ids[0] if commits[cr].parent_ids else None
 
 
-def branch_starter(deep):
+def branch_starter(deep, forsit):
 	for rr in (r for r in commits.values() if r.deep == deep and r.branch is not None):
-		if any((commits[p].branch is None for p in rr.parent_ids if p in commits)):
+		if not forsit.isdisjoint(rr.parent_ids):
 			return rr
 
 
 for branch in range(1, 1000):
-	if any((v.branch is None for v in commits.values())):
-		deep = 0
-		while deep < 1000:
-			br = branch_starter(deep)
-			while br is not None:
-				br = next((commits[p] for p in br.parent_ids if p in commits and commits[p].branch is None), None)
-				if br is not None:
-					br.branch = branch
-					deep = br.deep
-			deep += 1
-		print(branch, len([v for v in commits.values() if v.branch is None]))
-	else:
+	forsit = {v.id for v in commits.values() if v.branch is None}
+	if not forsit:
 		break
+	print(branch, len(forsit))
+	deep = 0
+	while deep < 1000:
+		br = branch_starter(deep, forsit)
+		while br is not None:
+			br = next((commits[p] for p in forsit & set(br.parent_ids)), None)
+			if br is not None:
+				br.branch = branch
+				deep = br.deep
+		deep += 1

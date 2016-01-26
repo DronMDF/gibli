@@ -72,6 +72,7 @@ class Repository:
 		new_commits = dict()
 
 		app.set_status_text('Loading revisions...')
+
 		deep_changer = set()
 		potential = [self.repo.head.target] + [None] * (self.MAX_BRANCHES - 1)
 		deep = [0] * self.MAX_BRANCHES
@@ -119,7 +120,6 @@ class Repository:
 		app.hide_status()
 		app.redraw_revision_graph()
 
-
 class Panel:
 	def __init__(self, builder, textId, revId, authorId, messageId):
 		self.textWidget = builder.get_object(textId)
@@ -162,6 +162,14 @@ class Application:
 		self.darea = self.get_object('revisionGraph')
 		self.darea.connect('draw', self.draw_cb)
 
+		self.viewport = self.get_object('viewport1')
+		hadj = self.viewport.get_hadjustment()
+		vadj = self.viewport.get_vadjustment()
+		self.hposition = hadj.get_page_size()
+		self.vposition = 0
+		hadj.connect('value_changed', self.on_hscroll)
+		vadj.connect('value_changed', self.on_vscroll)
+
 		self.progress = self.get_object('statusBar')
 
 	def get_object(self, id):
@@ -181,6 +189,12 @@ class Application:
 
 	def redraw_revision_graph(self):
 		self.darea.queue_draw()
+
+	def on_hscroll(self, adj):
+		self.hposition = adj.get_upper() - adj.get_value()
+
+	def on_vscroll(self, adj):
+		self.vposition = adj.get_value()
 
 	def draw_cb(self, widget, context):
 		try:
@@ -231,9 +245,18 @@ class Application:
 
 				context.move_to(px + 8, py)
 				context.set_source_rgb(0, 0, 0)
-				context.curve_to(px + 23, py, px + 23, y, px + 38, y)
+				if p.branch > c.branch:
+					context.line_to(x - 78, py)
+					context.curve_to(x - 63, py, x - 63, y, x - 48, y)
+				else:
+					context.curve_to(px + 23, py, px + 23, y, px + 38, y)
 				context.line_to(x - 48, y)
 				context.stroke()
+
+		hadj = self.viewport.get_hadjustment()
+		hadj.set_value(hadj.get_upper() - self.hposition)
+		vadj = self.viewport.get_vadjustment()
+		vadj.set_value(self.vposition)
 		return False
 
 

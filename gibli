@@ -118,7 +118,6 @@ class Repository:
 		self.commits = new_commits
 
 		app.hide_status()
-		app.scroll_to_right()
 		app.redraw_revision_graph()
 
 class Panel:
@@ -164,6 +163,12 @@ class Application:
 		self.darea.connect('draw', self.draw_cb)
 
 		self.viewport = self.get_object('viewport1')
+		hadj = self.viewport.get_hadjustment()
+		vadj = self.viewport.get_vadjustment()
+		self.hposition = hadj.get_page_size()
+		self.vposition = 0
+		hadj.connect('value_changed', self.on_hscroll)
+		vadj.connect('value_changed', self.on_vscroll)
 
 		self.progress = self.get_object('statusBar')
 
@@ -185,9 +190,11 @@ class Application:
 	def redraw_revision_graph(self):
 		self.darea.queue_draw()
 
-	def scroll_to_right(self):
-		hadj = self.viewport.get_hadjustment()
-		hadj.set_value(hadj.get_upper() - hadj.get_page_size())
+	def on_hscroll(self, adj):
+		self.hposition = adj.get_upper() - adj.get_value()
+
+	def on_vscroll(self, adj):
+		self.vposition = adj.get_value()
 
 	def draw_cb(self, widget, context):
 		try:
@@ -245,6 +252,11 @@ class Application:
 					context.curve_to(px + 23, py, px + 23, y, px + 38, y)
 				context.line_to(x - 48, y)
 				context.stroke()
+
+		hadj = self.viewport.get_hadjustment()
+		hadj.set_value(hadj.get_upper() - self.hposition)
+		vadj = self.viewport.get_vadjustment()
+		vadj.set_value(self.vposition)
 		return False
 
 

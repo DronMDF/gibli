@@ -111,20 +111,24 @@ class Repository:
 				if not forsit.isdisjoint(rr.parent_ids):
 					return rr
 
-		for branch in range(1, 1000):
+		for branch in range(1, self.MAX_BRANCHES):
 			forsit = {v.id for v in new_commits.values() if v.branch is None}
 			if not forsit:
 				break
 			deep = 0
-			while deep < 1000:
+			while deep < self.MAX_DEEP:
 				br = branch_starter(deep, forsit)
 				while br is not None:
 					br = next((new_commits[p] for p in forsit & set(br.parent_ids)), None)
 					if br is not None:
+						if br.deep < deep:
+							break
 						br.branch = branch
+						if any((p not in new_commits for p in br.parent_ids)):
+							deep = self.MAX_DEEP
+							break
 						if any((new_commits[p].branch is not None for p in br.parent_ids if p in new_commits)):
 							deep = max((new_commits[p].deep - 1 for p in br.parent_ids if p in new_commits))
-							break
 						deep += 1
 				deep += 1
 

@@ -72,6 +72,7 @@ class Repository:
 		new_commits = dict()
 
 		app.set_status_text('Loading revisions...')
+
 		deep_changer = set()
 		potential = [self.repo.head.target] + [None] * (self.MAX_BRANCHES - 1)
 		deep = [0] * self.MAX_BRANCHES
@@ -117,8 +118,8 @@ class Repository:
 		self.commits = new_commits
 
 		app.hide_status()
+		app.scroll_to_right()
 		app.redraw_revision_graph()
-
 
 class Panel:
 	def __init__(self, builder, textId, revId, authorId, messageId):
@@ -184,6 +185,10 @@ class Application:
 	def redraw_revision_graph(self):
 		self.darea.queue_draw()
 
+	def scroll_to_right(self):
+		hadj = self.viewport.get_hadjustment()
+		hadj.set_value(hadj.get_upper() - hadj.get_page_size())
+
 	def draw_cb(self, widget, context):
 		try:
 			deep = max((c.deep for c in self.repo.commits.values()))
@@ -233,12 +238,13 @@ class Application:
 
 				context.move_to(px + 8, py)
 				context.set_source_rgb(0, 0, 0)
-				context.curve_to(px + 23, py, px + 23, y, px + 38, y)
+				if p.branch > c.branch:
+					context.line_to(x - 78, py)
+					context.curve_to(x - 63, py, x - 63, y, x - 48, y)
+				else:
+					context.curve_to(px + 23, py, px + 23, y, px + 38, y)
 				context.line_to(x - 48, y)
 				context.stroke()
-
-		hadj = self.viewport.get_hadjustment()
-		hadj.set_value(hadj.get_upper() - hadj.get_page_size())
 		return False
 
 

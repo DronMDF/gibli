@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import itertools
 import math
 import os
 import pygit2
@@ -10,14 +11,13 @@ from gi.repository import Gtk, GLib
 class Revision:
 	ZERO = pygit2.Oid(hex=pygit2.GIT_OID_HEX_ZERO)
 
-	def __init__(self, commit, repo):
+	def __init__(self, commit, repo, deep=None):
 		self.commit = commit
 		self.repo = repo
 		self.id = commit.id
 		self.file_id = self.ZERO
 		self.parent_ids = commit.parent_ids	# Порядок важен!
-		self.child_ids = set()
-		self.deep = None
+		self.deep = deep
 		self.branch = None
 
 	def getBlobByTree(self, tree, item, tail):
@@ -35,6 +35,7 @@ class Revision:
 		self.file_id = self.getBlobByTree(self.commit.tree, parts[0], parts[1:])
 
 	def getObject(self, path):
+		# Todo: is not optimal. Potential multiple object search
 		if self.file_id == self.ZERO:
 			self.loadObject(path)
 		if self.file_id == self.ZERO:
@@ -69,40 +70,75 @@ class Repository:
 		return self.repo[id]
 
 	def load(self, app, path):
+		app.set_status_text('Loading revisions...')
+		app.set_status_progress(0)
+
 		new_commits = dict()
 
-		app.set_status_text('Loading revisions...')
-
-		deep_changer = set()
-		potential = [self.repo.head.target] + [None] * (self.MAX_BRANCHES - 1)
-		deep = [0] * self.MAX_BRANCHES
-		for c in self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL):
-			if c.id not in potential:
-				continue
-			revision = Revision(c, self)
-			revision.branch = potential.index(revision.id)
-			revision.deep = max((deep[b] for b in range(self.MAX_BRANCHES) if potential[b] == revision.id))
-
-			for i, c in enumerate(potential):
-				if c == revision.id:
-					potential[i] = None
-			if min((deep[b] for b in range(self.MAX_BRANCHES) if potential[b] is not None), default=0) >= self.MAX_DEEP:
+		# Collect tree
+		parents = set([self.repo.head.target])
+		for deep in range(self.MAX_DEEP):
+			if not parents:
 				break
-			if revision.deep > self.MAX_DEEP:
-				continue
+			next_parents = set()
+			for c in parents:
+				if c not in new_commits:
+					new_commits[c] = Revision(self.repo[c], self, deep)
+				new_commits[c].deep = deep
+				next_parents.update(new_commits[c].parent_ids)
+			parents = next_parents
+			app.set_status_progress(deep / self.MAX_DEEP * 0.4)
+			yield True
+		app.set_status_progress(0.4)
 
-			new_commits[revision.id] = revision
-			if revision.parent_ids:
-				potential[revision.branch] = revision.parent_ids[0]
-				deep[revision.branch] = revision.deep + 1
-				for p in revision.parent_ids[1:]:
-					branch = next((b for b in range(self.MAX_BRANCHES) if potential[b] is None and deep[b] < revision.deep + 1))
-					potential[branch] = p
-					deep[branch] = revision.deep + 1
-			app.set_status_progress(revision.deep / self.MAX_DEEP)
+		# Cleanup outofrange parents
+		while parents:
+			next_parents = set()
+			for c in parents:
+				if c in new_commits:
+					next_parents.update(new_commits[c].parent_ids)
+					del new_commits[c]
+			parents = next_parents
+			yield True
+		app.set_status_progress(0.5)
+
+		# mainline
+		cr = self.repo.head.target
+		while cr in new_commits:
+			new_commits[cr].branch = 0
+			cr = new_commits[cr].parent_ids[0] if new_commits[cr].parent_ids else None
+		yield True
+		app.set_status_progress(0.75)
+
+		def branch_starter(deep, forsit):
+			for rr in (r for r in new_commits.values() if r.deep == deep and r.branch is not None):
+				if not forsit.isdisjoint(rr.parent_ids):
+					return rr
+
+		for branch in range(1, self.MAX_BRANCHES):
+			forsit = {v.id for v in new_commits.values() if v.branch is None}
+			app.set_status_progress(1 - len(forsit) / len(new_commits) * 0.25)
+			if not forsit:
+				break
+			deep = 0
+			while deep < self.MAX_DEEP:
+				br = branch_starter(deep, forsit)
+				while br is not None:
+					br = next((new_commits[p] for p in forsit & set(br.parent_ids)
+						if new_commits[p].deep >= deep), None)
+					if br is not None:
+						br.branch = branch
+						if any((p not in new_commits for p in br.parent_ids)):
+							deep = self.MAX_DEEP
+							break
+						if any((new_commits[p].branch is not None for p in br.parent_ids if p in new_commits)):
+							deep = max((new_commits[p].deep - 1 for p in br.parent_ids
+								if p in new_commits and new_commits[p].branch is not None))
+						deep += 1
+				deep += 1
 			yield True
 
-		print("Three deep is:", max(deep) - 1)
+		print("Three deep is:", max((c.deep for c in new_commits.values())))
 		print("Three width is:", max((c.branch for c in new_commits.values())))
 
 		app.set_status_text('Load objects...')

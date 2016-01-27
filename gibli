@@ -10,12 +10,14 @@ from gi.repository import Gtk, GLib
 
 class Revision:
 	ZERO = pygit2.Oid(hex=pygit2.GIT_OID_HEX_ZERO)
+	ABSENT, DIFFER, EQUAL = 0, 1, 2
 
 	def __init__(self, commit, repo, deep=None):
 		self.commit = commit
 		self.repo = repo
 		self.id = commit.id
 		self.file_id = self.ZERO
+		self.state = self.ABSENT
 		self.parent_ids = commit.parent_ids	# Порядок важен!
 		self.deep = deep
 		self.branch = None
@@ -152,9 +154,21 @@ class Repository:
 			yield True
 
 		self.commits = new_commits
+		self.search_difference()
 
 		app.hide_status()
 		app.redraw_revision_graph()
+
+	def search_difference(self):
+		right_file_id = self.commits[self.repo.head.target].file_id
+		for c in self.commits.values():
+			if c.file_id == right_file_id:
+				c.state = c.EQUAL
+			elif c.file_id == c.ZERO:
+				c.state = c.ABSENT
+			else:
+				c.state = c.DIFFER
+
 
 class Panel:
 	def __init__(self, builder, textId, revId, authorId, messageId):
@@ -256,10 +270,11 @@ class Application:
 			context.close_path()
 			context.stroke_preserve()
 
-			if c.file_id == c.ZERO:
+			if c.state == c.ABSENT:
 				context.set_source_rgb(0.7, 0.7, 0.7)	# Gray
+			elif c.state == c.DIFFER:
+				context.set_source_rgb(1, 0.4, 0.4)	# Red
 			else:
-				# TODO: match with original
 				context.set_source_rgb(0.4, 1, 0.4)
 			context.fill()
 

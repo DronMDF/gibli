@@ -6,7 +6,7 @@ import math
 import os
 import pygit2
 import signal
-from gi.repository import Gtk, GLib
+from gi.repository import Gdk, Gtk, GLib
 
 class Revision:
 	ZERO = pygit2.Oid(hex=pygit2.GIT_OID_HEX_ZERO)
@@ -177,17 +177,18 @@ class Panel:
 		self.authorWidget = builder.get_object(authorId)
 		self.messageWidget = builder.get_object(messageId)
 
-	def show(self, commit, repo, path):
-		blob_text = Revision(commit, repo).getObject(path)
+	def show(self, commit, path):
+		blob_text = commit.getObject(path)
 		self.textWidget.get_buffer().set_text(blob_text.decode('utf8'))
 		self.revWidget.get_buffer().set_text(str(commit.id))
-		self.authorWidget.get_buffer().set_text('%s <%s>' % (commit.author.name, commit.author.email))
-		self.messageWidget.get_buffer().set_text(commit.message.splitlines()[0])
+		self.authorWidget.get_buffer().set_text('%s <%s>' % (commit.commit.author.name, commit.commit.author.email))
+		self.messageWidget.get_buffer().set_text(commit.commit.message.splitlines()[0])
 
 
 class Application:
 	def __init__(self, repo, path):
 		self.repo = repo
+		self.path = path
 
 		self.builder = Gtk.Builder()
 		self.builder.add_from_file(os.path.dirname(__file__) + '/gibli.glade')
@@ -206,11 +207,11 @@ class Application:
 		self.left_panel = Panel(self, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
 		self.right_panel = Panel(self, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
 
-		head = repo.head()
-		self.right_panel.show(head, repo, path)
+		self.right_panel.show(Revision(repo.head(), repo), path)
 
 		self.darea = self.get_object('revisionGraph')
 		self.darea.connect('draw', self.draw_cb)
+		self.darea.connect('button-press-event', self.on_graph_click)
 
 		self.viewport = self.get_object('viewport1')
 		hadj = self.viewport.get_hadjustment()
@@ -275,7 +276,7 @@ class Application:
 			elif c.state == c.DIFFER:
 				context.set_source_rgb(1, 0.4, 0.4)	# Red
 			else:
-				context.set_source_rgb(0.4, 1, 0.4)
+				context.set_source_rgb(0.4, 1, 0.4)	# Green
 			context.fill()
 
 			context.move_to(x - 40, y + 4)
@@ -309,6 +310,17 @@ class Application:
 		vadj = self.viewport.get_vadjustment()
 		vadj.set_value(self.vposition)
 		return False
+
+	def on_graph_click(self, widget, event):
+		# event.x and event.y keep position in darea
+		width, hewight = widget.get_size_request()
+		deep = int((width - event.x) / 86)
+		branch = int((event.y - 8) / 30)
+
+		commit = next((c for c in self.repo.commits.values() if c.branch == branch and c.deep == deep), None)
+		if commit is not None:
+			self.left_panel.show(commit, self.path)
+		return True
 
 
 if __name__ == '__main__':

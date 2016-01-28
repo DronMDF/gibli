@@ -353,6 +353,7 @@
                           <object class="GtkDrawingArea" id="revisionGraph">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
+                            <property name="events">GDK_BUTTON_PRESS_MASK | GDK_STRUCTURE_MASK</property>
                           </object>
                         </child>
                       </object>

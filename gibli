@@ -6,7 +6,7 @@ import math
 import os
 import pygit2
 import signal
-from gi.repository import Gtk, GLib
+from gi.repository import Gdk, Gtk, GLib
 
 class Revision:
 	ZERO = pygit2.Oid(hex=pygit2.GIT_OID_HEX_ZERO)
@@ -211,6 +211,7 @@ class Application:
 
 		self.darea = self.get_object('revisionGraph')
 		self.darea.connect('draw', self.draw_cb)
+		self.darea.connect('button-press-event', self.on_graph_click)
 
 		self.viewport = self.get_object('viewport1')
 		hadj = self.viewport.get_hadjustment()
@@ -309,6 +310,10 @@ class Application:
 		vadj = self.viewport.get_vadjustment()
 		vadj.set_value(self.vposition)
 		return False
+
+	def on_graph_click(self, widget, event):
+		# event.x and event.y keep position in darea
+		return True
 
 
 if __name__ == '__main__':

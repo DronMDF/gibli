@@ -177,17 +177,18 @@ class Panel:
 		self.authorWidget = builder.get_object(authorId)
 		self.messageWidget = builder.get_object(messageId)
 
-	def show(self, commit, repo, path):
-		blob_text = Revision(commit, repo).getObject(path)
+	def show(self, commit, path):
+		blob_text = commit.getObject(path)
 		self.textWidget.get_buffer().set_text(blob_text.decode('utf8'))
 		self.revWidget.get_buffer().set_text(str(commit.id))
-		self.authorWidget.get_buffer().set_text('%s <%s>' % (commit.author.name, commit.author.email))
-		self.messageWidget.get_buffer().set_text(commit.message.splitlines()[0])
+		self.authorWidget.get_buffer().set_text('%s <%s>' % (commit.commit.author.name, commit.commit.author.email))
+		self.messageWidget.get_buffer().set_text(commit.commit.message.splitlines()[0])
 
 
 class Application:
 	def __init__(self, repo, path):
 		self.repo = repo
+		self.path = path
 
 		self.builder = Gtk.Builder()
 		self.builder.add_from_file(os.path.dirname(__file__) + '/gibli.glade')
@@ -206,8 +207,7 @@ class Application:
 		self.left_panel = Panel(self, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
 		self.right_panel = Panel(self, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
 
-		head = repo.head()
-		self.right_panel.show(head, repo, path)
+		self.right_panel.show(Revision(repo.head(), repo), path)
 
 		self.darea = self.get_object('revisionGraph')
 		self.darea.connect('draw', self.draw_cb)
@@ -319,7 +319,7 @@ class Application:
 
 		commit = next((c for c in self.repo.commits.values() if c.branch == branch and c.deep == deep), None)
 		if commit is not None:
-			print(deep, branch, commit.id)
+			self.left_panel.show(commit, self.path)
 		return True
 
 

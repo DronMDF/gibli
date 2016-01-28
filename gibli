@@ -276,7 +276,7 @@ class Application:
 			elif c.state == c.DIFFER:
 				context.set_source_rgb(1, 0.4, 0.4)	# Red
 			else:
-				context.set_source_rgb(0.4, 1, 0.4)
+				context.set_source_rgb(0.4, 1, 0.4)	# Green
 			context.fill()
 
 			context.move_to(x - 40, y + 4)
@@ -313,6 +313,13 @@ class Application:
 
 	def on_graph_click(self, widget, event):
 		# event.x and event.y keep position in darea
+		width, hewight = widget.get_size_request()
+		deep = int((width - event.x) / 86)
+		branch = int((event.y - 8) / 30)
+
+		commit = next((c for c in self.repo.commits.values() if c.branch == branch and c.deep == deep), None)
+		if commit is not None:
+			print(deep, branch, commit.id)
 		return True
 
 

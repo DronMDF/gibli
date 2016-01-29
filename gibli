@@ -12,7 +12,7 @@ class Revision:
 	ZERO = pygit2.Oid(hex=pygit2.GIT_OID_HEX_ZERO)
 	ABSENT, DIFFER, EQUAL = 0, 1, 2
 
-	def __init__(self, commit, repo, deep=None):
+	def __init__(self, commit, repo, deep, branch):
 		self.commit = commit
 		self.repo = repo
 		self.id = commit.id
@@ -20,7 +20,7 @@ class Revision:
 		self.state = self.ABSENT
 		self.parent_ids = commit.parent_ids	# Порядок важен!
 		self.deep = deep
-		self.branch = None
+		self.branch = branch
 
 	def getBlobByTree(self, tree, item, tail):
 		entry = next((e for e in tree if e.name == item), None)
@@ -53,7 +53,7 @@ class Revision:
 
 class Repository:
 	MAX_BRANCHES = 500
-	MAX_DEEP = 1000
+	MAX_DEEP = 100
 
 	def __init__(self):
 		cwd = os.getcwd()
@@ -76,69 +76,23 @@ class Repository:
 		app.set_status_progress(0)
 
 		new_commits = dict()
-
-		# Collect tree
-		parents = set([self.repo.head.target])
-		for deep in range(self.MAX_DEEP):
-			if not parents:
-				break
-			next_parents = set()
-			for c in parents:
-				if c not in new_commits:
-					new_commits[c] = Revision(self.repo[c], self, deep)
-				new_commits[c].deep = deep
-				next_parents.update(new_commits[c].parent_ids)
-			parents = next_parents
-			app.set_status_progress(deep / self.MAX_DEEP * 0.4)
+		branches = {self.repo.head.target: (0, 0)}
+		for c in self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL):
+			deep, branch = branches.pop(c.id)
+			if deep <= self.MAX_DEEP:
+				new_commits[c.id] = Revision(c, self, deep, branch)
+			bb = {b[1] for b in branches.values()}
+			for pn in c.parent_ids:
+				bn = next((b for b in range(5000) if b not in bb))
+				if pn in branches:
+					branches[pn] = max(branches[pn][0], deep + 1), branches[pn][1]
+				else:
+					branches[pn] = deep + 1, bn
+					bb.add(bn)
+			app.set_status_progress(None)
 			yield True
-		app.set_status_progress(0.4)
 
-		# Cleanup outofrange parents
-		while parents:
-			next_parents = set()
-			for c in parents:
-				if c in new_commits:
-					next_parents.update(new_commits[c].parent_ids)
-					del new_commits[c]
-			parents = next_parents
-			yield True
-		app.set_status_progress(0.5)
-
-		# mainline
-		cr = self.repo.head.target
-		while cr in new_commits:
-			new_commits[cr].branch = 0
-			cr = new_commits[cr].parent_ids[0] if new_commits[cr].parent_ids else None
-		yield True
-		app.set_status_progress(0.75)
-
-		def branch_starter(deep, forsit):
-			for rr in (r for r in new_commits.values() if r.deep == deep and r.branch is not None):
-				if not forsit.isdisjoint(rr.parent_ids):
-					return rr
-
-		for branch in range(1, self.MAX_BRANCHES):
-			forsit = {v.id for v in new_commits.values() if v.branch is None}
-			app.set_status_progress(1 - len(forsit) / len(new_commits) * 0.25)
-			if not forsit:
-				break
-			deep = 0
-			while deep < self.MAX_DEEP:
-				br = branch_starter(deep, forsit)
-				while br is not None:
-					br = next((new_commits[p] for p in forsit & set(br.parent_ids)
-						if new_commits[p].deep >= deep), None)
-					if br is not None:
-						br.branch = branch
-						if any((p not in new_commits for p in br.parent_ids)):
-							deep = self.MAX_DEEP
-							break
-						if any((new_commits[p].branch is not None for p in br.parent_ids if p in new_commits)):
-							deep = max((new_commits[p].deep - 1 for p in br.parent_ids
-								if p in new_commits and new_commits[p].branch is not None))
-						deep += 1
-				deep += 1
-			yield True
+		print(len(new_commits))
 
 		print("Three deep is:", max((c.deep for c in new_commits.values())))
 		print("Three width is:", max((c.branch for c in new_commits.values())))
@@ -207,7 +161,7 @@ class Application:
 		self.left_panel = Panel(self, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
 		self.right_panel = Panel(self, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
 
-		self.right_panel.show(Revision(repo.head(), repo), path)
+		self.right_panel.show(Revision(repo.head(), repo, 0, 0), path)
 
 		self.darea = self.get_object('revisionGraph')
 		self.darea.connect('draw', self.draw_cb)
@@ -222,6 +176,7 @@ class Application:
 		vadj.connect('value_changed', self.on_vscroll)
 
 		self.progress = self.get_object('statusBar')
+		self.progress.set_pulse_step(0.00001)
 
 	def get_object(self, id):
 		return self.builder.get_object(id)
@@ -230,7 +185,10 @@ class Application:
 		self.progress.set_text(text)
 
 	def set_status_progress(self, progress):
-		self.progress.set_fraction(progress)
+		if progress is None:
+			self.progress.pulse()
+		else:
+			self.progress.set_fraction(progress)
 
 	def hide_status(self):
 		self.progress.hide()
@@ -288,7 +246,7 @@ class Application:
 					# History may be not complete
 					context.move_to(x - 48, y)
 					context.set_source_rgb(0, 0, 0)
-					context.line_to(0, y)
+					context.curve_to(x - 58, y, x - 58, y + 10, x - 68, y + 10)
 					context.stroke()
 					continue
 				p = self.repo.commits[pid]

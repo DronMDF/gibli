@@ -79,6 +79,7 @@ class Repository:
 		new_commits = dict()
 		branches = {self.head_id: (0, 0)}
 		for c in self.repo.walk(self.head_id, pygit2.GIT_SORT_TOPOLOGICAL):
+			print (c.id, c.parent_ids)
 			deep, branch = branches.pop(c.id)
 			if deep <= self.MAX_DEEP:
 				new_commits[c.id] = Revision(c, self, deep, branch)
@@ -287,11 +288,11 @@ if __name__ == '__main__':
 
 	parser = argparse.ArgumentParser(description='GIT blame interface')
 	parser.add_argument('revision', type=str, nargs='?', help='revision', default='HEAD')
-	parser.add_argument('filename', type=str, nargs='?', help='filename to analisys')
+	parser.add_argument('filename', type=str, nargs=1, help='filename to analisys')
 	args = parser.parse_args()
 
 	repo = Repository(args.revision)
-	path = os.path.relpath(args.filename, repo.get_workdir())
+	path = os.path.relpath(args.filename[0], repo.get_workdir())
 
 	app = Application(repo, path)
 

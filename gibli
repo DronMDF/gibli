@@ -77,19 +77,24 @@ class Repository:
 		app.set_status_progress(0)
 
 		new_commits = dict()
+		brdeep = [0] * self.MAX_BRANCHES
 		branches = {self.head_id: (0, 0)}
 		for c in self.repo.walk(self.head_id, pygit2.GIT_SORT_TOPOLOGICAL):
 			deep, branch = branches.pop(c.id)
 			if deep <= self.MAX_DEEP:
 				new_commits[c.id] = Revision(c, self, deep, branch)
-			def branchis():
+			def branch_available():
+				bb = {b[1] for b in branches.values()}
 				for b in range(5000):
-					if b not in {b[1] for b in branches.values()}:
+					if b not in bb and brdeep[b] <= deep:
 						yield b
-			branchgen = branchis()
+			ab = list(itertools.islice(branch_available(), len(c.parent_ids)))
 			for pn in c.parent_ids:
-				pd, pb = branches.get(pn, (deep + 1, None))
-				branches[pn] = max(pd, deep + 1), pb if pb is not None else next(branchgen)
+				bd, bb = branches.get(pn, (deep + 1, None))
+				pd = max(bd, deep + 1)
+				pb = bb if bb is not None else ab.pop(0)
+				branches[pn] = pd, pb
+				brdeep[pb] = pd
 			app.set_status_progress(None)
 			yield True
 

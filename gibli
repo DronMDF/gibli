@@ -72,6 +72,11 @@ class Repository:
 	def get_commit(self, id):
 		return self.repo[id]
 
+	def debug_out(self, id, parent_ids, branches):
+		print(str(id)[:7], end=' ')
+		print([str(p)[:7] for p in parent_ids], end=' ')
+		print([(str(b[0])[:7], b[1]) for b in sorted(branches.items(), key=lambda x: x[1][1])])
+
 	def load(self, app, path):
 		app.set_status_text('Loading revisions...')
 		app.set_status_progress(0)
@@ -79,25 +84,20 @@ class Repository:
 		new_commits = dict()
 		branches = {self.head_id: (0, 0)}
 		for c in self.repo.walk(self.head_id, pygit2.GIT_SORT_TOPOLOGICAL):
-			#print (c.id, c.parent_ids)
 			deep, branch = branches.pop(c.id)
 			if deep <= self.MAX_DEEP:
 				new_commits[c.id] = Revision(c, self, deep, branch)
-			def parents(pids):
-				for pn in pids:
-					pd, _ = branches.pop(pn, (deep + 1, None))
-					yield pn, pd
-			pdd = [pd for pd in parents(c.parent_ids)]
 			def branchis():
-				bb = {b[1] for b in branches.values()}
 				for b in range(5000):
-					if b not in bb:
+					if b not in {b[1] for b in branches.values()}:
 						yield b
 			branchgen = branchis()
-			for pn, pd in pdd:
-				bn = next(branchgen)
-				branches[pn] = pd, bn
-				#print(pn, bn, pd)
+			for pn in c.parent_ids:
+				pd, pb = branches.get(pn, (deep + 1, None))
+				branches[pn] = max(pd, deep + 1), pb if pb is not None else next(branchgen)
+
+			self.debug_out(c.id, c.parent_ids, branches)
+
 			app.set_status_progress(None)
 			yield True
 

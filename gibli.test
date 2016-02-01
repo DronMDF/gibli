@@ -19,10 +19,9 @@ class FakeApplication:
 
 
 class FakeCommit:
-	def __init__(self, id, repo):
+	def __init__(self, id, parent_ids):
 		self.id = id
-		self.parent_ids = repo.get_parent_ids(id)
-		self.parents = repo.get_parents(id)
+		self.parent_ids = parent_ids
 		self.tree = []
 
 
@@ -34,11 +33,9 @@ class FakeRepo:
 		self.head.peel = lambda: FakeCommit(head, self)
 		self.head.target = head
 
-	def get_parent_ids(self, id):
-		return self.tree[id]
-
-	def get_parents(self, id):
-		return [FakeCommit(p, self) for p in self.tree[id]]
+	def walk(self, id, type):
+		assert self.tree[0][0] == id
+		return (FakeCommit(i, ps) for i, ps in self.tree)
 
 
 class RepositoryUT(gibli.Repository):
@@ -53,7 +50,7 @@ class RepositoryUT(gibli.Repository):
 class TestReposirity(unittest.TestCase):
 	def testReposytoryChainOfCommits(self):
 		# Given
-		tree = {'A': ['B'], 'B': []}
+		tree = [('A', ['B']), ('B', [])]
 		repo = RepositoryUT(tree, 'A')
 		# When
 		for _ in repo.load(FakeApplication(), ''): pass
@@ -62,7 +59,7 @@ class TestReposirity(unittest.TestCase):
 		self.assertEqual(graph['A'].deep, 0)
 		self.assertEqual(graph['A'].branch, 0)
 		self.assertEqual(graph['B'].deep, 1)
-		self.assertEqual(graph['B'].branch, 1)
+		self.assertEqual(graph['B'].branch, 0)
 
 
 if __name__ == '__main__':

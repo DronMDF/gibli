@@ -55,10 +55,11 @@ class Repository:
 	MAX_BRANCHES = 500
 	MAX_DEEP = 100
 
-	def __init__(self):
+	def __init__(self, head):
 		cwd = os.getcwd()
 		repo_path = pygit2.discover_repository(cwd)
 		self.repo = pygit2.Repository(repo_path)
+		self.head_id = self.repo.revparse_single(head).id
 
 		self.commits = dict()
 
@@ -66,7 +67,7 @@ class Repository:
 		return self.repo.workdir
 
 	def head(self):
-		return self.repo.head.peel()
+		return self.repo[self.head_id]
 
 	def get_commit(self, id):
 		return self.repo[id]
@@ -76,8 +77,8 @@ class Repository:
 		app.set_status_progress(0)
 
 		new_commits = dict()
-		branches = {self.repo.head.target: (0, 0)}
-		for c in self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL):
+		branches = {self.head_id: (0, 0)}
+		for c in self.repo.walk(self.head_id, pygit2.GIT_SORT_TOPOLOGICAL):
 			deep, branch = branches.pop(c.id)
 			if deep <= self.MAX_DEEP:
 				new_commits[c.id] = Revision(c, self, deep, branch)
@@ -114,7 +115,7 @@ class Repository:
 		app.redraw_revision_graph()
 
 	def search_difference(self):
-		right_file_id = self.commits[self.repo.head.target].file_id
+		right_file_id = self.commits[self.head_id].file_id
 		for c in self.commits.values():
 			if c.file_id == right_file_id:
 				c.state = c.EQUAL
@@ -285,10 +286,11 @@ if __name__ == '__main__':
 	signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 	parser = argparse.ArgumentParser(description='GIT blame interface')
+	parser.add_argument('revision', type=str, nargs='?', help='revision', default='HEAD')
 	parser.add_argument('filename', type=str, nargs='?', help='filename to analisys')
 	args = parser.parse_args()
 
-	repo = Repository()
+	repo = Repository(args.revision)
 	path = os.path.relpath(args.filename, repo.get_workdir())
 
 	app = Application(repo, path)

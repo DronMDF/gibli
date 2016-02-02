@@ -73,28 +73,15 @@ class Repository:
 		return self.repo[id]
 
 	def get_avail_branche(self, commits, id, deep):
-		print (id)
 		for b in range(self.MAX_BRANCHES):
-			print (b, end=' - ')
 			last = max((c for c in commits.values() if c.branch == b),
 					key=lambda x: x.deep, default=None)
 			if last is None:
-				print ('no previos commit in', b)
 				return b
 			if last.deep >= deep:
-				print ('deeped by', last.id)
-				continue
-			if id not in last.parent_ids:
-				if all((p in commits for p in last.parent_ids)):
-					print ('closed parent', last.id)
-					return b
-				print ('no my parent', last.id)
 				continue
 			if all((p in commits for p in last.parent_ids if p != id)):
-				# all previous commit in tree
-				print ('all other commit already treeid', last.id, last.parent_ids)
 				return b
-			print ('potentially not my slot', last.id, last.parent_ids)
 		return self.MAX_BRANCHES
 
 	def load(self, app, path):

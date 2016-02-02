@@ -72,29 +72,53 @@ class Repository:
 	def get_commit(self, id):
 		return self.repo[id]
 
+	def get_avail_branche(self, commits, id, deep):
+		print (id)
+		for b in range(self.MAX_BRANCHES):
+			print (b, end=' - ')
+			last = max((c for c in commits.values() if c.branch == b),
+					key=lambda x: x.deep, default=None)
+			if last is None:
+				print ('no previos commit in', b)
+				return b
+			if last.deep >= deep:
+				print ('deeped by', last.id)
+				continue
+			if id not in last.parent_ids:
+				if all((p in commits for p in last.parent_ids)):
+					print ('closed parent', last.id)
+					return b
+				print ('no my parent', last.id)
+				continue
+			if all((p in commits for p in last.parent_ids[:last.parent_ids.index(id)])):
+				# all previous commit in tree
+				print ('all previos commit already treeid', last.parent_ids)
+				return b
+			print ('potentially not my slot', last.parent_ids)
+		return self.MAX_BRANCHES
+
 	def load(self, app, path):
 		app.set_status_text('Loading revisions...')
 		app.set_status_progress(0)
 
 		new_commits = dict()
-		brdeep = [0] * self.MAX_BRANCHES
-		branches = {self.head_id: (0, 0)}
-		for c in self.repo.walk(self.head_id, pygit2.GIT_SORT_TOPOLOGICAL):
-			deep, branch = branches.pop(c.id)
-			if deep <= self.MAX_DEEP:
-				new_commits[c.id] = Revision(c, self, deep, branch)
-			def branch_available():
-				bb = {b[1] for b in branches.values()}
-				for b in range(5000):
-					if b not in bb and brdeep[b] <= deep:
-						yield b
-			ab = list(itertools.islice(branch_available(), len(c.parent_ids)))
-			for pn in c.parent_ids:
-				bd, bb = branches.get(pn, (deep + 1, None))
-				pd = max(bd, deep + 1)
-				pb = bb if bb is not None else ab.pop(0)
-				branches[pn] = pd, pb
-				brdeep[pb] = pd
+		childrens = {self.head_id: []}
+		for commit in self.repo.walk(self.head_id, pygit2.GIT_SORT_TOPOLOGICAL):
+			child_ids = childrens.pop(commit.id)
+			if all((cid in new_commits for cid in child_ids)):
+				childs = [new_commits[cid] for cid in child_ids]
+				deep = max((child.deep + 1 for child in childs), default=0)
+				if deep < self.MAX_DEEP:
+					branch = self.get_avail_branche(new_commits, commit.id, deep)
+					new_commits[commit.id] = Revision(commit, self, deep, branch)
+
+			for pn in commit.parent_ids:
+				assert pn not in new_commits
+				if pn in childrens:
+					childrens[pn].append(commit.id)
+				else:
+					childrens[pn] = [commit.id]
+
 			app.set_status_progress(None)
 			yield True
 

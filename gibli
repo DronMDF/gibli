@@ -109,11 +109,6 @@ class Repository:
 			app.set_status_progress(None)
 			yield True
 
-		print(len(new_commits))
-
-		print("Three deep is:", max((c.deep for c in new_commits.values())))
-		print("Three width is:", max((c.branch for c in new_commits.values())))
-
 		app.set_status_text('Load objects...')
 		app.set_status_progress(0)
 		ac_step = 1.0 / len(new_commits)

@@ -121,6 +121,7 @@ class Repository:
 
 		self.commits = new_commits
 		self.search_difference()
+		self.select_first_parent(app, path)
 
 		app.hide_status()
 		app.redraw_revision_graph()
@@ -134,6 +135,19 @@ class Repository:
 				c.state = c.ABSENT
 			else:
 				c.state = c.DIFFER
+
+	def select_first_parent(self, app, path):
+		right_file_id = self.commits[self.head_id].file_id
+		id = self.head_id
+		while True:
+			nid = self.commits[id].parent_ids[0] if self.commits[id].parent_ids else None
+			if nid is None or nid not in self.commits:
+				app.left_panel.show(self.commits[id], path)
+				break
+			if self.commits[nid].state != Revision.EQUAL:
+				app.left_panel.show(self.commits[nid], path)
+				break
+			id = nid
 
 
 class Panel:

@@ -90,11 +90,11 @@ class Repository:
 					return b
 				print ('no my parent', last.id)
 				continue
-			if all((p in commits for p in last.parent_ids[:last.parent_ids.index(id)])):
+			if all((p in commits for p in last.parent_ids if p != id)):
 				# all previous commit in tree
-				print ('all previos commit already treeid', last.parent_ids)
+				print ('all other commit already treeid', last.id, last.parent_ids)
 				return b
-			print ('potentially not my slot', last.parent_ids)
+			print ('potentially not my slot', last.id, last.parent_ids)
 		return self.MAX_BRANCHES
 
 	def load(self, app, path):

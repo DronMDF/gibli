@@ -157,9 +157,8 @@ class Panel:
 		self.authorWidget = builder.get_object(authorId)
 		self.messageWidget = builder.get_object(messageId)
 
-	def show(self, commit, path):
-		blob_text = commit.getObject(path)
-		self.textWidget.get_buffer().set_text(blob_text.decode('utf8'))
+	def show(self, commit, text):
+		self.textWidget.get_buffer().set_text(text)
 		self.revWidget.get_buffer().set_text(str(commit.id))
 		self.authorWidget.get_buffer().set_text('%s <%s>' % (commit.commit.author.name, commit.commit.author.email))
 		self.messageWidget.get_buffer().set_text(commit.commit.message.splitlines()[0])
@@ -171,11 +170,13 @@ class ContentComparator:
 		self.right_panel = Panel(builder, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
 		self.path = path
 
-	def show_at_right(self, rev):
-		self.right_panel.show(rev, self.path)
+	def show_at_right(self, commit):
+		text = commit.getObject(self.path).decode('utf8')
+		self.right_panel.show(commit, text)
 
-	def show_at_left(self, rev):
-		self.left_panel.show(rev, self.path)
+	def show_at_left(self, commit):
+		text = commit.getObject(self.path).decode('utf8')
+		self.left_panel.show(commit, text)
 
 
 class Application:

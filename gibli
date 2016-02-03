@@ -137,6 +137,7 @@ class Repository:
 				c.state = c.DIFFER
 
 	def select_first_parent(self, app):
+		app.show_at_right(self.commits[self.head_id])
 		right_file_id = self.commits[self.head_id].file_id
 		id = self.head_id
 		while True:
@@ -148,6 +149,13 @@ class Repository:
 				app.show_at_left(self.commits[nid])
 				break
 			id = nid
+
+	def diff(self, aid, bid):
+		if aid == Revision.ZERO or bid == Revision.ZERO:
+			return []
+		a = self.repo[aid]
+		b = self.repo[bid]
+		return a.diff(b).hunks
 
 
 class Panel:
@@ -163,20 +171,45 @@ class Panel:
 		self.authorWidget.get_buffer().set_text('%s <%s>' % (commit.commit.author.name, commit.commit.author.email))
 		self.messageWidget.get_buffer().set_text(commit.commit.message.splitlines()[0])
 
+	def reset_colors(self):
+		pass
+
+	def set_color(self, start, lines, color):
+		pass
+
 
 class ContentComparator:
-	def __init__(self, builder, path):
-		self.left_panel = Panel(builder, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
-		self.right_panel = Panel(builder, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
+	def __init__(self, app, path):
+		self.left_panel = Panel(app, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
+		self.right_panel = Panel(app, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
+		self.repo = app.repo
 		self.path = path
+		self.right_object_id = None
+		self.left_object_id = None
+		self.color_deletion = None
+		self.color_insertion = None
 
 	def show_at_right(self, commit):
+		self.right_object_id = commit.file_id
 		text = commit.getObject(self.path).decode('utf8')
 		self.right_panel.show(commit, text)
+		self.coloring()
 
 	def show_at_left(self, commit):
+		self.left_object_id = commit.file_id
 		text = commit.getObject(self.path).decode('utf8')
 		self.left_panel.show(commit, text)
+		self.coloring()
+
+	def coloring(self):
+		self.left_panel.reset_colors()
+		self.right_panel.reset_colors()
+		if self.right_object_id is None or self.left_object_id is None:
+			return
+		diff = self.repo.diff(self.left_object_id, self.right_object_id)
+		for h in diff:
+			self.left_panel.set_color(h.old_start, h.old_lines, self.color_deletion)
+			self.right_panel.set_color(h.new_start, h.new_lines, self.color_insertion)
 
 
 class Application:
@@ -320,6 +353,8 @@ class Application:
 	def show_at_left(self, commit):
 		self.comparator.show_at_left(commit)
 
+	def show_at_right(self, commit):
+		self.comparator.show_at_right(commit)
 
 if __name__ == '__main__':
 	signal.signal(signal.SIGINT, signal.SIG_DFL)

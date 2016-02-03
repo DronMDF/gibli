@@ -84,7 +84,7 @@ class Repository:
 				return b
 		return self.MAX_BRANCHES
 
-	def load(self, app, path):
+	def load(self, app):
 		app.set_status_text('Loading revisions...')
 		app.set_status_progress(0)
 
@@ -121,7 +121,7 @@ class Repository:
 
 		self.commits = new_commits
 		self.search_difference()
-		self.select_first_parent(app, path)
+		self.select_first_parent(app)
 
 		app.hide_status()
 		app.redraw_revision_graph()
@@ -136,16 +136,16 @@ class Repository:
 			else:
 				c.state = c.DIFFER
 
-	def select_first_parent(self, app, path):
+	def select_first_parent(self, app):
 		right_file_id = self.commits[self.head_id].file_id
 		id = self.head_id
 		while True:
 			nid = self.commits[id].parent_ids[0] if self.commits[id].parent_ids else None
 			if nid is None or nid not in self.commits:
-				app.left_panel.show(self.commits[id], path)
+				app.show_at_left(self.commits[id])
 				break
 			if self.commits[nid].state != Revision.EQUAL:
-				app.left_panel.show(self.commits[nid], path)
+				app.show_at_left(self.commits[nid])
 				break
 			id = nid
 
@@ -165,10 +165,22 @@ class Panel:
 		self.messageWidget.get_buffer().set_text(commit.commit.message.splitlines()[0])
 
 
+class ContentComparator:
+	def __init__(self, builder, path):
+		self.left_panel = Panel(builder, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
+		self.right_panel = Panel(builder, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
+		self.path = path
+
+	def show_at_right(self, rev):
+		self.right_panel.show(rev, self.path)
+
+	def show_at_left(self, rev):
+		self.left_panel.show(rev, self.path)
+
+
 class Application:
 	def __init__(self, repo, path):
 		self.repo = repo
-		self.path = path
 
 		self.builder = Gtk.Builder()
 		self.builder.add_from_file(os.path.dirname(__file__) + '/gibli.glade')
@@ -184,10 +196,8 @@ class Application:
 		height = paned.get_allocated_height()
 		paned.set_position(height * 0.7)
 
-		self.left_panel = Panel(self, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
-		self.right_panel = Panel(self, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
-
-		self.right_panel.show(Revision(repo.head(), repo, 0, 0), path)
+		self.comparator = ContentComparator(self, path)
+		self.comparator.show_at_right(Revision(repo.head(), repo, 0, 0))
 
 		self.darea = self.get_object('revisionGraph')
 		self.darea.connect('draw', self.draw_cb)
@@ -303,8 +313,11 @@ class Application:
 
 		commit = next((c for c in self.repo.commits.values() if c.branch == branch and c.deep == deep), None)
 		if commit is not None:
-			self.left_panel.show(commit, self.path)
+			self.comparator.show_at_left(commit)
 		return True
+
+	def show_at_left(self, commit):
+		self.comparator.show_at_left(commit)
 
 
 if __name__ == '__main__':
@@ -320,7 +333,7 @@ if __name__ == '__main__':
 
 	app = Application(repo, path)
 
-	loading = repo.load(app, path)
+	loading = repo.load(app)
 	GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)
 
 	Gtk.main()

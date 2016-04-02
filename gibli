@@ -159,11 +159,15 @@ class Repository:
 
 
 class Panel:
+	DELETION, INSERTION = False, True
+
 	def __init__(self, builder, textId, revId, authorId, messageId):
 		self.textWidget = builder.get_object(textId)
 		self.revWidget = builder.get_object(revId)
 		self.authorWidget = builder.get_object(authorId)
 		self.messageWidget = builder.get_object(messageId)
+		self.deletion_tag = self.textWidget.get_buffer().create_tag('deletion', background='Red')
+		self.insertion_tag = self.textWidget.get_buffer().create_tag('insertion', background='Green')
 
 	def show(self, commit, text):
 		self.textWidget.get_buffer().set_text(text)
@@ -172,10 +176,16 @@ class Panel:
 		self.messageWidget.get_buffer().set_text(commit.commit.message.splitlines()[0])
 
 	def reset_colors(self):
-		pass
+		buffer = self.textWidget.get_buffer()
+		begin = buffer.get_start_iter()
+		end = buffer.get_end_iter()
+		buffer.remove_all_tags(begin, end)
 
-	def set_color(self, start, lines, color):
-		pass
+	def set_color(self, start, lines, insert):
+		buffer = self.textWidget.get_buffer()
+		begin = buffer.get_iter_at_line(start - 1)
+		end = buffer.get_iter_at_line(start + lines - 1)
+		buffer.apply_tag(self.insertion_tag if insert else self.deletion_tag, begin, end)
 
 
 class ContentComparator:
@@ -186,8 +196,6 @@ class ContentComparator:
 		self.path = path
 		self.right_object_id = None
 		self.left_object_id = None
-		self.color_deletion = None
-		self.color_insertion = None
 
 	def show_at_right(self, commit):
 		self.right_object_id = commit.file_id
@@ -208,8 +216,8 @@ class ContentComparator:
 			return
 		diff = self.repo.diff(self.left_object_id, self.right_object_id)
 		for h in diff:
-			self.left_panel.set_color(h.old_start, h.old_lines, self.color_deletion)
-			self.right_panel.set_color(h.new_start, h.new_lines, self.color_insertion)
+			self.left_panel.set_color(h.old_start + 3, h.old_lines - 6, self.left_panel.DELETION)
+			self.right_panel.set_color(h.new_start + 3, h.new_lines - 6, self.right_panel.INSERTION)
 
 
 class Application:

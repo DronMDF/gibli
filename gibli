@@ -166,8 +166,8 @@ class Panel:
 		self.revWidget = builder.get_object(revId)
 		self.authorWidget = builder.get_object(authorId)
 		self.messageWidget = builder.get_object(messageId)
-		self.deletion_tag = self.textWidget.get_buffer().create_tag('deletion', background='Red')
-		self.insertion_tag = self.textWidget.get_buffer().create_tag('insertion', background='Green')
+		self.deletion_tag = self.textWidget.get_buffer().create_tag('deletion', background_gdk=Gdk.Color(65535, 26214, 26214))
+		self.insertion_tag = self.textWidget.get_buffer().create_tag('insertion', background_gdk=Gdk.Color(26214, 65535, 26214))
 
 	def show(self, commit, text):
 		self.textWidget.get_buffer().set_text(text)

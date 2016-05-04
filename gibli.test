@@ -79,5 +79,15 @@ class TestReposirity(unittest.TestCase):
 		self.assertEqual(graph['C'].branch, 1)
 		self.assertEqual(graph['F'].branch, 2)
 
+
+class TestContentDiff(unittest.TestCase):
+	def testEmptyDiff(self):
+		# given
+		diff = gibli.ContentDiff([])
+		# then
+		self.assertListEqual(diff.get_left_diff(), [])
+		self.assertListEqual(diff.get_right_diff(), [])
+
+
 if __name__ == '__main__':
 	unittest.main()

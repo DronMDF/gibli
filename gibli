@@ -192,6 +192,17 @@ class Panel:
 		buffer.apply_tag(self.insertion_tag if insert else self.deletion_tag, begin, end)
 
 
+class ContentDiff:
+	def __init__(self, diff):
+		self.diff = diff
+
+	def get_left_diff(self):
+		return []
+
+	def get_right_diff(self):
+		return []
+
+
 class ContentComparator:
 	def __init__(self, app, path):
 		self.left_panel = Panel(app, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')

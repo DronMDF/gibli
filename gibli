@@ -197,10 +197,10 @@ class ContentDiff:
 		self.diff = diff
 
 	def get_left_diff(self):
-		return []
+		return [(d.old_start, d.old_lines, max((d.old_lines, d.new_lines))) for d in self.diff]
 
 	def get_right_diff(self):
-		return []
+		return [(d.new_start, d.new_lines, max((d.old_lines, d.new_lines))) for d in self.diff]
 
 
 class ContentComparator:

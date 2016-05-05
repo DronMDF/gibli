@@ -81,14 +81,18 @@ class TestReposirity(unittest.TestCase):
 		self.assertEqual(graph['F'].branch, 2)
 
 
+class TestDiffLine:
+	def __init__(self, origin):
+		self.origin = origin
+
+
 class TestDiffHunk(pygit2.DiffHunk):
-	def __init__(self, old_start=0, old_lines=0, new_start=0, new_lines=0,
-			context_lines=3):
+	def __init__(self, lines, old_start=1, new_start=1):
 		self.old_start = old_start
-		self.old_lines = old_lines
+		self.old_lines = len(lines.replace('+', ''))
 		self.new_start = new_start
-		self.new_lines = new_lines
-		# TODO: Generate self.lines by input args
+		self.new_lines = len(lines.replace('-', ''))
+		self.lines = [TestDiffLine(l) for l in lines]
 
 
 class TestContentDiff(unittest.TestCase):
@@ -101,11 +105,11 @@ class TestContentDiff(unittest.TestCase):
 
 	def testOneSideDiff(self):
 		# given
-		gdiff = [TestDiffHunk(new_lines=100)]
+		gdiff = [TestDiffHunk(lines='+'*100)]
 		diff = gibli.ContentDiff(gdiff)
 		# then
-		self.assertListEqual(diff.get_left_diff(), [(0, 0, 100)])
-		self.assertListEqual(diff.get_right_diff(), [(0, 100, 100)])
+		self.assertListEqual(diff.get_left_diff(), [(1, 0, 100)])
+		self.assertListEqual(diff.get_right_diff(), [(1, 100, 100)])
 
 
 if __name__ == '__main__':

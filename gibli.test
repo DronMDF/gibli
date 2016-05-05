@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import pygit2
 import sys
 import types
 import unittest
@@ -81,14 +80,14 @@ class TestReposirity(unittest.TestCase):
 		self.assertEqual(graph['F'].branch, 2)
 
 
-class TestDiffLine:
+class Pygit2DiffLine:
 	def __init__(self, origin, old_lineno, new_lineno):
 		self.origin = origin
 		self.old_lineno = old_lineno
 		self.new_lineno = new_lineno
 
 
-class TestDiffHunk(pygit2.DiffHunk):
+class Pygit2DiffHunk:
 	def __init__(self, lines, old_start=1, new_start=1):
 		self.old_start = old_start
 		self.old_lines = len(lines.replace('+', ''))
@@ -99,13 +98,13 @@ class TestDiffHunk(pygit2.DiffHunk):
 	def generate_lines(self, lines, old_lineno, new_lineno):
 		for l in lines:
 			if l == '-':
-				yield TestDiffLine(l, old_lineno, -1)
+				yield Pygit2DiffLine(l, old_lineno, -1)
 				old_lineno += 1
 			elif l == '+':
-				yield TestDiffLine(l, -1, new_lineno)
+				yield Pygit2DiffLine(l, -1, new_lineno)
 				new_lineno += 1
 			else:
-				yield TestDiffLine(l, old_lineno, new_lineno)
+				yield Pygit2DiffLine(l, old_lineno, new_lineno)
 				old_lineno += 1
 				new_lineno += 1
 
@@ -120,7 +119,7 @@ class TestContentDiff(unittest.TestCase):
 
 	def testOneSideDiff(self):
 		# given
-		ghunks = [TestDiffHunk(lines='+'*100)]
+		ghunks = [Pygit2DiffHunk(lines='+'*100)]
 		diff = gibli.ContentDiff(ghunks)
 		# then
 		self.assertListEqual(diff.get_left_diff(), [(1, 0, 100)])
@@ -128,7 +127,7 @@ class TestContentDiff(unittest.TestCase):
 
 	def testHoledDiff(self):
 		# Given
-		gdiff = [TestDiffHunk(lines='   -+  -+   ', old_start=197, new_start=197)]
+		gdiff = [Pygit2DiffHunk(lines='   -+  -+   ', old_start=197, new_start=197)]
 		diff = gibli.ContentDiff(gdiff)
 		# Then
 		self.assertListEqual(diff.get_left_diff(), [(200, 1, 1), (203, 1, 1)])

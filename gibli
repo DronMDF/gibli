@@ -193,14 +193,37 @@ class Panel:
 
 
 class ContentDiff:
-	def __init__(self, diff):
-		self.diff = diff
+	def __init__(self, hunks):
+		self.hunks = list(self.drop_context(hunks))
+
+	def drop_context(self, hunks):
+		for h in hunks:
+			old_start, old_lines, new_start, new_lines = None, None, None, None
+			for l in h.lines:
+				if l.origin == '-':
+					if old_start is None:
+						old_start = l.old_lineno
+						old_lines = 0
+					old_lines += 1
+				elif l.origin == '+':
+					if new_start is None:
+						new_start = l.new_lineno
+						new_lines = 0
+					new_lines += 1
+				else:
+					if old_start is not None or new_start is not None:
+						yield (old_start or l.old_lineno, old_lines or 0,
+							new_start or l.new_lineno, new_lines or 0)
+					old_start, old_lines, new_start, new_lines = None, None, None, None
+			if old_start is not None or new_start is not None:
+				yield (old_start or h.old_start + h.old_lines, old_lines or 0,
+					new_start or h.new_start + h.new_lines, new_lines or 0)
 
 	def get_left_diff(self):
-		return [(d.old_start, d.old_lines, max((d.old_lines, d.new_lines))) for d in self.diff]
+		return [(h[0], h[1], max((h[1], h[3]))) for h in self.hunks]
 
 	def get_right_diff(self):
-		return [(d.new_start, d.new_lines, max((d.old_lines, d.new_lines))) for d in self.diff]
+		return [(h[2], h[3], max((h[1], h[3]))) for h in self.hunks]
 
 
 class ContentComparator:

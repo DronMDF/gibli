@@ -82,8 +82,10 @@ class TestReposirity(unittest.TestCase):
 
 
 class TestDiffLine:
-	def __init__(self, origin):
+	def __init__(self, origin, old_lineno, new_lineno):
 		self.origin = origin
+		self.old_lineno = old_lineno
+		self.new_lineno = new_lineno
 
 
 class TestDiffHunk(pygit2.DiffHunk):
@@ -92,7 +94,20 @@ class TestDiffHunk(pygit2.DiffHunk):
 		self.old_lines = len(lines.replace('+', ''))
 		self.new_start = new_start
 		self.new_lines = len(lines.replace('-', ''))
-		self.lines = [TestDiffLine(l) for l in lines]
+		self.lines = list(self.generate_lines(lines, old_start, new_start))
+
+	def generate_lines(self, lines, old_lineno, new_lineno):
+		for l in lines:
+			if l == '-':
+				yield TestDiffLine(l, old_lineno, -1)
+				old_lineno += 1
+			elif l == '+':
+				yield TestDiffLine(l, -1, new_lineno)
+				new_lineno += 1
+			else:
+				yield TestDiffLine(l, old_lineno, new_lineno)
+				old_lineno += 1
+				new_lineno += 1
 
 
 class TestContentDiff(unittest.TestCase):
@@ -105,11 +120,19 @@ class TestContentDiff(unittest.TestCase):
 
 	def testOneSideDiff(self):
 		# given
-		gdiff = [TestDiffHunk(lines='+'*100)]
-		diff = gibli.ContentDiff(gdiff)
+		ghunks = [TestDiffHunk(lines='+'*100)]
+		diff = gibli.ContentDiff(ghunks)
 		# then
 		self.assertListEqual(diff.get_left_diff(), [(1, 0, 100)])
 		self.assertListEqual(diff.get_right_diff(), [(1, 100, 100)])
+
+	def testHoledDiff(self):
+		# Given
+		gdiff = [TestDiffHunk(lines='   -+  -+   ', old_start=197, new_start=197)]
+		diff = gibli.ContentDiff(gdiff)
+		# Then
+		self.assertListEqual(diff.get_left_diff(), [(200, 1, 1), (203, 1, 1)])
+		self.assertListEqual(diff.get_right_diff(), [(200, 1, 1), (203, 1, 1)])
 
 
 if __name__ == '__main__':

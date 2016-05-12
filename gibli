@@ -191,6 +191,14 @@ class Panel:
 		end = buffer.get_iter_at_line(start + lines - 1)
 		buffer.apply_tag(self.insertion_tag if insert else self.deletion_tag, begin, end)
 
+	def set_difference(self, diff, insert):
+		buffer = self.textWidget.get_buffer()
+		tag = self.insertion_tag if insert else self.deletion_tag
+		for start, lines, total in diff:
+			begin = buffer.get_iter_at_line(start - 1)
+			end = buffer.get_iter_at_line(start - 1 + lines)
+			buffer.apply_tag(tag, begin, end)
+
 
 class ContentDiff:
 	def __init__(self, hunks):
@@ -252,10 +260,9 @@ class ContentComparator:
 		self.right_panel.reset_colors()
 		if self.right_object_id is None or self.left_object_id is None:
 			return
-		diff = self.repo.diff(self.left_object_id, self.right_object_id)
-		for h in diff:
-			self.left_panel.set_color(h.old_start + 3, h.old_lines - 6, self.left_panel.DELETION)
-			self.right_panel.set_color(h.new_start + 3, h.new_lines - 6, self.right_panel.INSERTION)
+		diff = ContentDiff(self.repo.diff(self.left_object_id, self.right_object_id))
+		self.left_panel.set_difference(diff.get_left_diff(), Panel.DELETION)
+		self.right_panel.set_difference(diff.get_right_diff(), Panel.INSERTION)
 
 
 class Application:

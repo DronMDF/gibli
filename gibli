@@ -6,6 +6,10 @@ import math
 import os
 import pygit2
 import signal
+
+import gi
+gi.require_version('Gtk', '3.0')
+gi.require_version('Gdk', '3.0')
 from gi.repository import Gdk, Gtk, GLib
 
 class Revision:
@@ -84,7 +88,7 @@ class Repository:
 				return b
 		return self.MAX_BRANCHES
 
-	def load(self, app, path):
+	def load(self, app):
 		app.set_status_text('Loading revisions...')
 		app.set_status_progress(0)
 
@@ -121,7 +125,7 @@ class Repository:
 
 		self.commits = new_commits
 		self.search_difference()
-		self.select_first_parent(app, path)
+		self.select_first_parent(app)
 
 		app.hide_status()
 		app.redraw_revision_graph()
@@ -136,39 +140,134 @@ class Repository:
 			else:
 				c.state = c.DIFFER
 
-	def select_first_parent(self, app, path):
+	def select_first_parent(self, app):
+		app.show_at_right(self.commits[self.head_id])
 		right_file_id = self.commits[self.head_id].file_id
 		id = self.head_id
 		while True:
 			nid = self.commits[id].parent_ids[0] if self.commits[id].parent_ids else None
 			if nid is None or nid not in self.commits:
-				app.left_panel.show(self.commits[id], path)
+				app.show_at_left(self.commits[id])
 				break
 			if self.commits[nid].state != Revision.EQUAL:
-				app.left_panel.show(self.commits[nid], path)
+				app.show_at_left(self.commits[nid])
 				break
 			id = nid
 
+	def diff(self, aid, bid):
+		if aid == Revision.ZERO or bid == Revision.ZERO:
+			return []
+		a = self.repo[aid]
+		b = self.repo[bid]
+		return a.diff(b).hunks
+
 
 class Panel:
+	DELETION, INSERTION = False, True
+
 	def __init__(self, builder, textId, revId, authorId, messageId):
 		self.textWidget = builder.get_object(textId)
 		self.revWidget = builder.get_object(revId)
 		self.authorWidget = builder.get_object(authorId)
 		self.messageWidget = builder.get_object(messageId)
+		self.deletion_tag = self.textWidget.get_buffer().create_tag('deletion', background_gdk=Gdk.Color(65535, 26214, 26214))
+		self.insertion_tag = self.textWidget.get_buffer().create_tag('insertion', background_gdk=Gdk.Color(26214, 65535, 26214))
 
-	def show(self, commit, path):
-		blob_text = commit.getObject(path)
-		self.textWidget.get_buffer().set_text(blob_text.decode('utf8'))
+	def show(self, commit, text):
+		self.textWidget.get_buffer().set_text(text)
 		self.revWidget.get_buffer().set_text(str(commit.id))
 		self.authorWidget.get_buffer().set_text('%s <%s>' % (commit.commit.author.name, commit.commit.author.email))
 		self.messageWidget.get_buffer().set_text(commit.commit.message.splitlines()[0])
+
+	def reset_colors(self):
+		buffer = self.textWidget.get_buffer()
+		begin = buffer.get_start_iter()
+		end = buffer.get_end_iter()
+		buffer.remove_all_tags(begin, end)
+
+	def set_color(self, start, lines, insert):
+		buffer = self.textWidget.get_buffer()
+		begin = buffer.get_iter_at_line(start - 1)
+		end = buffer.get_iter_at_line(start + lines - 1)
+		buffer.apply_tag(self.insertion_tag if insert else self.deletion_tag, begin, end)
+
+	def set_difference(self, diff, insert):
+		buffer = self.textWidget.get_buffer()
+		tag = self.insertion_tag if insert else self.deletion_tag
+		for start, lines, total in diff:
+			begin = buffer.get_iter_at_line(start - 1)
+			end = buffer.get_iter_at_line(start - 1 + lines)
+			buffer.apply_tag(tag, begin, end)
+
+
+class ContentDiff:
+	def __init__(self, hunks):
+		self.hunks = list(self.drop_context(hunks))
+
+	def drop_context(self, hunks):
+		for h in hunks:
+			old_start, old_lines, new_start, new_lines = None, None, None, None
+			for l in h.lines:
+				if l.origin == '-':
+					if old_start is None:
+						old_start = l.old_lineno
+						old_lines = 0
+					old_lines += 1
+				elif l.origin == '+':
+					if new_start is None:
+						new_start = l.new_lineno
+						new_lines = 0
+					new_lines += 1
+				else:
+					if old_start is not None or new_start is not None:
+						yield (old_start or l.old_lineno, old_lines or 0,
+							new_start or l.new_lineno, new_lines or 0)
+					old_start, old_lines, new_start, new_lines = None, None, None, None
+			if old_start is not None or new_start is not None:
+				yield (old_start or h.old_start + h.old_lines, old_lines or 0,
+					new_start or h.new_start + h.new_lines, new_lines or 0)
+
+	def get_left_diff(self):
+		return [(h[0], h[1], max((h[1], h[3]))) for h in self.hunks]
+
+	def get_right_diff(self):
+		return [(h[2], h[3], max((h[1], h[3]))) for h in self.hunks]
+
+
+class ContentComparator:
+	def __init__(self, app, path):
+		self.left_panel = Panel(app, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
+		self.right_panel = Panel(app, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
+		self.repo = app.repo
+		self.path = path
+		self.right_object_id = None
+		self.left_object_id = None
+
+	def show_at_right(self, commit):
+		self.right_object_id = commit.file_id
+		text = commit.getObject(self.path).decode('utf8')
+		self.right_panel.show(commit, text)
+		self.coloring()
+
+	def show_at_left(self, commit):
+		self.left_object_id = commit.file_id
+		text = commit.getObject(self.path).decode('utf8')
+		self.left_panel.show(commit, text)
+		self.coloring()
+
+	def coloring(self):
+		self.left_panel.reset_colors()
+		self.right_panel.reset_colors()
+		if self.right_object_id is None or self.left_object_id is None:
+			return
+		diff = ContentDiff(self.repo.diff(self.left_object_id, self.right_object_id))
+		self.left_panel.set_difference(diff.get_left_diff(), Panel.DELETION)
+		self.right_panel.set_difference(diff.get_right_diff(), Panel.INSERTION)
 
 
 class Application:
 	def __init__(self, repo, path):
 		self.repo = repo
-		self.path = path
 
 		self.builder = Gtk.Builder()
 		self.builder.add_from_file(os.path.dirname(__file__) + '/gibli.glade')
@@ -184,10 +283,8 @@ class Application:
 		height = paned.get_allocated_height()
 		paned.set_position(height * 0.7)
 
-		self.left_panel = Panel(self, 'leftText', 'leftRevisionText', 'leftAuthorText', 'leftCommitText')
-		self.right_panel = Panel(self, 'rightText', 'rightRevisionText', 'rightAuthorText', 'rightCommitText')
-
-		self.right_panel.show(Revision(repo.head(), repo, 0, 0), path)
+		self.comparator = ContentComparator(self, path)
+		self.comparator.show_at_right(Revision(repo.head(), repo, 0, 0))
 
 		self.darea = self.get_object('revisionGraph')
 		self.darea.connect('draw', self.draw_cb)
@@ -303,9 +400,14 @@ class Application:
 
 		commit = next((c for c in self.repo.commits.values() if c.branch == branch and c.deep == deep), None)
 		if commit is not None:
-			self.left_panel.show(commit, self.path)
+			self.comparator.show_at_left(commit)
 		return True
 
+	def show_at_left(self, commit):
+		self.comparator.show_at_left(commit)
+
+	def show_at_right(self, commit):
+		self.comparator.show_at_right(commit)
 
 if __name__ == '__main__':
 	signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -320,7 +422,7 @@ if __name__ == '__main__':
 
 	app = Application(repo, path)
 
-	loading = repo.load(app, path)
+	loading = repo.load(app)
 	GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)
 
 	Gtk.main()

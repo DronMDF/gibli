@@ -410,7 +410,7 @@ class OldApplication:
 		self.comparator.show_at_right(commit)
 
 
-class Programm:
+class Application:
 	def __init__(self):
 		parser = argparse.ArgumentParser(description='GIT blame interface')
 		parser.add_argument('revision', type=str, nargs='?', help='revision', default='HEAD')
@@ -431,6 +431,6 @@ class Programm:
 
 if __name__ == '__main__':
 	signal.signal(signal.SIGINT, signal.SIG_DFL)
-	app = Programm()
+	app = Application()
 	app.main()
 

@@ -410,6 +410,12 @@ class OldApplication:
 		self.comparator.show_at_right(commit)
 
 
+class MainWindow(Gtk.Window):
+	def __init__(self):
+		super().__init__(self, type=Gtk.WindowType.TOPLEVEL, title='GIT blame interface')
+		self.connect('delete-event', Gtk.main_quit)
+
+
 class Application:
 	def __init__(self):
 		parser = argparse.ArgumentParser(description='GIT blame interface')
@@ -420,8 +426,12 @@ class Application:
 		self.repo = Repository(args.revision)
 		self.path = os.path.relpath(args.filename[0], self.repo.get_workdir())
 
+		self.main_window = MainWindow()
+
 	def main(self):
+		self.main_window.show_all()
 		app = OldApplication(self.repo, self.path)
+
 
 		loading = self.repo.load(app, self.path)
 		GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)

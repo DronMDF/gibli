@@ -409,20 +409,27 @@ class Application:
 	def show_at_right(self, commit):
 		self.comparator.show_at_right(commit)
 
+
+class Programm:
+	def main(self):
+		parser = argparse.ArgumentParser(description='GIT blame interface')
+		parser.add_argument('revision', type=str, nargs='?', help='revision', default='HEAD')
+		parser.add_argument('filename', type=str, nargs=1, help='filename to analisys')
+		args = parser.parse_args()
+
+		repo = Repository(args.revision)
+		path = os.path.relpath(args.filename[0], repo.get_workdir())
+
+		app = Application(repo, path)
+
+		loading = repo.load(app, path)
+		GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)
+
+		Gtk.main()
+
+
 if __name__ == '__main__':
 	signal.signal(signal.SIGINT, signal.SIG_DFL)
+	app = Programm()
+	app.main()
 
-	parser = argparse.ArgumentParser(description='GIT blame interface')
-	parser.add_argument('revision', type=str, nargs='?', help='revision', default='HEAD')
-	parser.add_argument('filename', type=str, nargs=1, help='filename to analisys')
-	args = parser.parse_args()
-
-	repo = Repository(args.revision)
-	path = os.path.relpath(args.filename[0], repo.get_workdir())
-
-	app = Application(repo, path)
-
-	loading = repo.load(app, path)
-	GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)
-
-	Gtk.main()

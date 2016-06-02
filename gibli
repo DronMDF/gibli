@@ -265,7 +265,7 @@ class ContentComparator:
 		self.right_panel.set_difference(diff.get_right_diff(), Panel.INSERTION)
 
 
-class Application:
+class OldApplication:
 	def __init__(self, repo, path):
 		self.repo = repo
 
@@ -421,7 +421,7 @@ class Programm:
 		self.path = os.path.relpath(args.filename[0], self.repo.get_workdir())
 
 	def main(self):
-		app = Application(self.repo, self.path)
+		app = OldApplication(self.repo, self.path)
 
 		loading = self.repo.load(app, self.path)
 		GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)

@@ -419,22 +419,30 @@ class MainWindow(Gtk.Window):
 		menu.append(Gtk.MenuItem('Help'))
 
 		paned = Gtk.Paned.new(Gtk.Orientation.HORIZONTAL)
-		paned.add2(self.createGraph())
+		paned.add2(self.createDiffFrame())
+		paned.add2(self.createGraphFrame())
 
-		hbox = Gtk.HBox()
-		hbox.pack_start(menu, False, False, 0)
-		hbox.pack_end(paned, True, True, 0)
-		self.add(hbox)
+		box = Gtk.HBox()
+		box.pack_start(menu, False, False, 0)
+		box.pack_end(paned, True, True, 0)
+		self.add(box)
 
-	def createGraph(self):
+	def createDiffFrame(self):
+		diff = Gtk.ScrolledWindow.new()
+		info = Gtk.HBox()
+		box = Gtk.VBox()
+		box.pack_start(diff, True, True, 0)
+		box.pack_end(info, False, False, 0)
+		return box
+
+	def createGraphFrame(self):
 		graph = Gtk.ScrolledWindow.new()
-
 		status = Gtk.ProgressBar.new()
 
-		hbox = Gtk.HBox()
-		hbox.pack_start(graph, True, True, 0)
-		hbox.pack_end(status, False, False, 0)
-		return hbox
+		box = Gtk.HBox()
+		box.pack_start(graph, True, True, 0)
+		box.pack_end(status, False, False, 0)
+		return box
 
 
 class Application:

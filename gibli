@@ -418,8 +418,11 @@ class MainWindow(Gtk.Window):
 		menu = Gtk.MenuBar()
 		menu.append(Gtk.MenuItem('Help'))
 
+		paned = Gtk.Paned.new(Gtk.Orientation.HORIZONTAL)
+
 		hbox1 = Gtk.HBox()
 		hbox1.pack_start(menu, False, False, 0)
+		hbox1.pack_end(paned, True, True, 0)
 		self.add(hbox1)
 
 
@@ -439,7 +442,6 @@ class Application:
 		self.main_window.maximize()
 		self.main_window.show_all()
 		app = OldApplication(self.repo, self.path)
-
 
 		loading = self.repo.load(app, self.path)
 		GLib.idle_add(lambda: next(loading, False), priority=GLib.PRIORITY_LOW)

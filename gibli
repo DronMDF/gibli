@@ -419,11 +419,22 @@ class MainWindow(Gtk.Window):
 		menu.append(Gtk.MenuItem('Help'))
 
 		paned = Gtk.Paned.new(Gtk.Orientation.HORIZONTAL)
+		paned.add2(self.createGraph())
 
-		hbox1 = Gtk.HBox()
-		hbox1.pack_start(menu, False, False, 0)
-		hbox1.pack_end(paned, True, True, 0)
-		self.add(hbox1)
+		hbox = Gtk.HBox()
+		hbox.pack_start(menu, False, False, 0)
+		hbox.pack_end(paned, True, True, 0)
+		self.add(hbox)
+
+	def createGraph(self):
+		graph = Gtk.ScrolledWindow.new()
+
+		status = Gtk.ProgressBar.new()
+
+		hbox = Gtk.HBox()
+		hbox.pack_start(graph, True, True, 0)
+		hbox.pack_end(status, False, False, 0)
+		return hbox
 
 
 class Application:

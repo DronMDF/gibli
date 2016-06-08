@@ -418,8 +418,8 @@ class MainWindow(Gtk.Window):
 		menu = Gtk.MenuBar()
 		menu.append(Gtk.MenuItem('Help'))
 
-		paned = Gtk.Paned.new(Gtk.Orientation.HORIZONTAL)
-		paned.add2(self.createDiffFrame())
+		paned = Gtk.VPaned.new()
+		paned.add1(self.createDiffFrame())
 		paned.add2(self.createGraphFrame())
 
 		box = Gtk.HBox()
@@ -429,10 +429,28 @@ class MainWindow(Gtk.Window):
 
 	def createDiffFrame(self):
 		diff = Gtk.ScrolledWindow.new()
-		info = Gtk.HBox()
+
+		info = Gtk.Table.new(4, 3, True)
+		info.attach(Gtk.Label.new("Revision:"), 0, 1, 0, 1, xoptions=Gtk.AttachOptions.SHRINK)
+		info.attach(Gtk.Label.new("Author:"), 0, 1, 1, 2, xoptions=Gtk.AttachOptions.SHRINK)
+		info.attach(Gtk.Label.new("Commit:"), 0, 1, 2, 3, xoptions=Gtk.AttachOptions.SHRINK)
+
+		info.attach(Gtk.TextView.new(), 1, 2, 0, 1, xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND)
+		info.attach(Gtk.TextView.new(), 1, 2, 1, 2, xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND)
+		info.attach(Gtk.TextView.new(), 1, 2, 2, 3, xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND)
+
+		info.attach(Gtk.Label.new("Revision:"), 2, 3, 0, 1, xoptions=Gtk.AttachOptions.SHRINK)
+		info.attach(Gtk.Label.new("Author:"), 2, 3, 1, 2, xoptions=Gtk.AttachOptions.SHRINK)
+		info.attach(Gtk.Label.new("Commit:"), 2, 3, 2, 3, xoptions=Gtk.AttachOptions.SHRINK)
+
+		info.attach(Gtk.TextView.new(), 3, 4, 0, 1, xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND)
+		info.attach(Gtk.TextView.new(), 3, 4, 1, 2, xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND)
+		info.attach(Gtk.TextView.new(), 3, 4, 2, 3, xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND)
+
 		box = Gtk.VBox()
 		box.pack_start(diff, True, True, 0)
 		box.pack_end(info, False, False, 0)
+
 		return box
 
 	def createGraphFrame(self):

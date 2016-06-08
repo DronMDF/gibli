@@ -436,12 +436,20 @@ class MainWindow(Gtk.Window):
 		return box
 
 	def createGraphFrame(self):
+		draw = Gtk.DrawingArea.new()
+
+		viewport = Gtk.Viewport.new()
+		viewport.add(draw)
+
 		graph = Gtk.ScrolledWindow.new()
+		graph.add(viewport)
+
 		status = Gtk.ProgressBar.new()
 
 		box = Gtk.HBox()
 		box.pack_start(graph, True, True, 0)
 		box.pack_end(status, False, False, 0)
+
 		return box
 
 

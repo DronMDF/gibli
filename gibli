@@ -428,7 +428,26 @@ class MainWindow(Gtk.Window):
 		self.add(box)
 
 	def createDiffFrame(self):
+		lefttext = Gtk.TextView.new()
+		leftscroll = Gtk.ScrolledWindow.new()
+		leftscroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
+		leftscroll.add(lefttext)
+
+		righttext = Gtk.TextView.new()
+		rightscroll = Gtk.ScrolledWindow.new()
+		rightscroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
+		rightscroll.add(righttext)
+
+		diffbox = Gtk.HBox.new(False, 0)
+		diffbox.pack_start(leftscroll, True, True, 0)
+		diffbox.pack_end(rightscroll, True, True, 0)
+
+		viewport = Gtk.Viewport.new()
+		viewport.add(diffbox)
+
 		diff = Gtk.ScrolledWindow.new()
+		diff.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+		diff.add(viewport)
 
 		info = Gtk.Table.new(4, 3, True)
 		info.attach(Gtk.Label.new("Revision:"), 0, 1, 0, 1, xoptions=Gtk.AttachOptions.SHRINK)

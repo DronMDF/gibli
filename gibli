@@ -419,8 +419,9 @@ class MainWindow(Gtk.Window):
 		menu.append(Gtk.MenuItem('Help'))
 
 		paned = Gtk.VPaned.new()
-		paned.add1(self.createDiffFrame())
-		paned.add2(self.createGraphFrame())
+		paned.pack1(self.createDiffFrame(), True, True)
+		paned.pack2(self.createGraphFrame(), True, True)
+		paned.set_wide_handle(True)
 
 		box = Gtk.HBox()
 		box.pack_start(menu, False, False, 0)
@@ -483,7 +484,7 @@ class MainWindow(Gtk.Window):
 
 		status = Gtk.ProgressBar.new()
 
-		box = Gtk.HBox()
+		box = Gtk.VBox()
 		box.pack_start(graph, True, True, 0)
 		box.pack_end(status, False, False, 0)
 
